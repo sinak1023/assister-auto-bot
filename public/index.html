@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CodeWeaver</title>
+    <link rel="stylesheet" href="style.css" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕸️</text></svg>"
+    />
+  </head>
+  <body>
+    <div id="app">
+      <!-- Sidebar -->
+      <aside id="sidebar">
+        <div class="brand">
+          <span class="logo">🕸️</span>
+          <span class="brand-name">CodeWeaver</span>
+        </div>
+
+        <button id="newChatBtn" class="primary-btn">+ New chat</button>
+
+        <div class="side-section">
+          <div class="side-head">
+            <span>Chat archive</span>
+          </div>
+          <div id="sessionList" class="list"></div>
+        </div>
+
+        <div class="side-section">
+          <div class="side-head">
+            <span>Skills</span>
+            <button id="addSkillBtn" class="icon-btn" title="Add skill">+</button>
+          </div>
+          <div id="skillList" class="list"></div>
+        </div>
+
+        <div class="side-footer">
+          <span id="bashBadge" class="badge"></span>
+          <span id="keyBadge" class="badge"></span>
+        </div>
+      </aside>
+
+      <!-- Main -->
+      <main id="main">
+        <header id="topbar">
+          <div id="chatTitle" class="chat-title">CodeWeaver</div>
+          <div class="topbar-right">
+            <select id="modelSelect" title="Model"></select>
+            <button id="stopBtn" class="ghost-btn" style="display: none">■ Stop</button>
+          </div>
+        </header>
+
+        <div id="messages" class="messages">
+          <div class="empty-state">
+            <div class="empty-logo">🕸️</div>
+            <h1>CodeWeaver</h1>
+            <p>An agentic coding assistant — like Claude Code, in your browser, powered by OpenRouter.</p>
+            <ul class="hints">
+              <li>It reads, writes &amp; edits files in a sandboxed workspace</li>
+              <li>It searches the codebase and runs commands</li>
+              <li>Add <strong>skills</strong> to teach it reusable expertise</li>
+              <li>Switch models anytime — free or best</li>
+            </ul>
+          </div>
+        </div>
+
+        <div id="composer" class="composer">
+          <textarea
+            id="input"
+            placeholder="Ask CodeWeaver to build, fix, or explain something…  (Enter to send, Shift+Enter for newline)"
+            rows="1"
+          ></textarea>
+          <button id="sendBtn" class="send-btn" title="Send">➤</button>
+        </div>
+      </main>
+    </div>
+
+    <!-- Skill editor modal -->
+    <div id="skillModal" class="modal hidden">
+      <div class="modal-card">
+        <div class="modal-head">
+          <h3 id="skillModalTitle">New skill</h3>
+          <button id="skillCloseBtn" class="icon-btn">✕</button>
+        </div>
+        <label>Name</label>
+        <input id="skillName" type="text" placeholder="Web Research" />
+        <label>Description (one line — when to use it)</label>
+        <input id="skillDesc" type="text" placeholder="How to research a topic and cite sources" />
+        <label>Instructions (Markdown)</label>
+        <textarea id="skillBody" rows="12" placeholder="Step-by-step guidance the agent should follow…"></textarea>
+        <div class="modal-actions">
+          <button id="skillDeleteBtn" class="danger-btn" style="display: none">Delete</button>
+          <div class="spacer"></div>
+          <button id="skillSaveBtn" class="primary-btn">Save skill</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

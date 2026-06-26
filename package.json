@@ -1,0 +1,27 @@
+{
+  "name": "codeweaver",
+  "version": "1.0.0",
+  "description": "CodeWeaver — a Claude-Code-like agentic coding assistant with a web UI, powered by OpenRouter.",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "openrouter",
+    "coding-assistant",
+    "claude-code"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
