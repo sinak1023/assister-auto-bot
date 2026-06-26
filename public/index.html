@@ -11,6 +11,7 @@
     />
   </head>
   <body>
+    <div id="overlay" class="overlay hidden"></div>
     <div id="app">
       <!-- Sidebar -->
       <aside id="sidebar">
@@ -45,8 +46,10 @@
       <!-- Main -->
       <main id="main">
         <header id="topbar">
+          <button id="menuBtn" class="icon-btn menu-btn" title="Menu">☰</button>
           <div id="chatTitle" class="chat-title">CodeWeaver</div>
           <div class="topbar-right">
+            <span id="usageBadge" class="usage-badge" title="Token usage / cost for this chat"></span>
             <select id="modelSelect" title="Model"></select>
             <button id="stopBtn" class="ghost-btn" style="display: none">■ Stop</button>
           </div>

@@ -25,10 +25,15 @@ async function runTurn({ session, emit, signal }) {
   // Reconstruct the message array the model sees: system + transcript.
   const transcript = [{ role: "system", content: system }, ...session.messages];
 
+  // Running totals for this turn; session.usage holds the lifetime total.
+  if (!session.usage)
+    session.usage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, cost: 0 };
+  const turnUsage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, cost: 0 };
+
   for (let step = 0; step < MAX_STEPS; step++) {
     emit({ type: "step", step: step + 1 });
 
-    const { content, reasoning, toolCalls } = await streamChat({
+    const { content, reasoning, toolCalls, usage } = await streamChat({
       model: session.model,
       messages: transcript,
       tools: TOOL_SCHEMAS,
@@ -39,6 +44,19 @@ async function runTurn({ session, emit, signal }) {
           emit({ type: "reasoning", delta: ev.delta });
       },
     });
+
+    // Accumulate usage from this model call into the turn + session totals.
+    if (usage) {
+      for (const k of ["prompt_tokens", "completion_tokens", "total_tokens"]) {
+        turnUsage[k] += usage[k] || 0;
+        session.usage[k] += usage[k] || 0;
+      }
+      if (typeof usage.cost === "number") {
+        turnUsage.cost += usage.cost;
+        session.usage.cost += usage.cost;
+      }
+      emit({ type: "usage", turn: { ...turnUsage }, total: { ...session.usage } });
+    }
 
     // Persist the assistant message (text + any tool calls it made).
     const assistantMsg = {
@@ -53,6 +71,7 @@ async function runTurn({ session, emit, signal }) {
 
     if (!toolCalls.length) {
       // No tools requested → this is the final answer for the turn.
+      assistantMsg.usage = { ...turnUsage }; // persist for the archive view
       emit({ type: "assistant_done", content });
       return session;
     }

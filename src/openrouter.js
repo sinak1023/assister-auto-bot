@@ -58,6 +58,8 @@ async function streamChat({ model, messages, tools, signal, onEvent }) {
     messages,
     stream: true,
     temperature: 0.3,
+    // ask OpenRouter to include token usage + cost in the final chunk
+    usage: { include: true },
   };
   if (tools && tools.length) {
     body.tools = tools;
@@ -83,6 +85,7 @@ async function streamChat({ model, messages, tools, signal, onEvent }) {
   let content = "";
   let reasoning = "";
   let finishReason = null;
+  let usage = null;
   // tool calls arrive as indexed deltas that we accumulate by index
   const toolAcc = {};
 
@@ -106,6 +109,17 @@ async function streamChat({ model, messages, tools, signal, onEvent }) {
         json = JSON.parse(data);
       } catch {
         continue;
+      }
+
+      // The usage chunk often arrives with an empty choices array, so read it
+      // before the choice guard below.
+      if (json.usage) {
+        usage = {
+          prompt_tokens: json.usage.prompt_tokens || 0,
+          completion_tokens: json.usage.completion_tokens || 0,
+          total_tokens: json.usage.total_tokens || 0,
+          cost: typeof json.usage.cost === "number" ? json.usage.cost : null,
+        };
       }
 
       const choice = json.choices?.[0];
@@ -150,9 +164,10 @@ async function streamChat({ model, messages, tools, signal, onEvent }) {
   if (toolCalls.length) {
     onEvent?.({ type: "tool_calls", toolCalls });
   }
+  if (usage) onEvent?.({ type: "usage", usage });
   onEvent?.({ type: "done", finishReason });
 
-  return { content, reasoning, toolCalls };
+  return { content, reasoning, toolCalls, usage };
 }
 
 module.exports = { listModels, streamChat };
