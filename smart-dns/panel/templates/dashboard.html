@@ -1,0 +1,97 @@
+<!-- dashboard.html — داشبورد اصلی مدیریت IPها -->
+{% extends "base.html" %}
+{% block title %}داشبورد — Smart DNS Panel{% endblock %}
+{% block content %}
+
+<!-- کارت‌های آمار خلاصه -->
+<section class="stats">
+  <div class="stat"><span class="num">{{ stats.total }}</span><span class="lbl">کل IP‌ها</span></div>
+  <div class="stat ok"><span class="num">{{ stats.active }}</span><span class="lbl">فعال</span></div>
+  <div class="stat bad"><span class="num">{{ stats.expired }}</span><span class="lbl">منقضی</span></div>
+  <div class="stat"><span class="num">{{ stats.total_in | human_bytes }}</span><span class="lbl">مجموع ورودی</span></div>
+  <div class="stat"><span class="num">{{ stats.total_out | human_bytes }}</span><span class="lbl">مجموع خروجی</span></div>
+</section>
+
+<!-- فرم افزودن IP جدید -->
+<section class="card">
+  <h2>افزودن / تمدید IP</h2>
+  <form method="post" action="{{ url_for('add_ip') }}" class="inline-form">
+    <input type="text" name="ip" placeholder="مثلا 5.12.34.56" required>
+    <input type="text" name="label" placeholder="برچسب (اختیاری)">
+    <input type="number" name="days" placeholder="روز" min="1" value="30" required>
+    <button class="btn btn-primary" type="submit">افزودن</button>
+  </form>
+</section>
+
+<!-- جدول IPها -->
+<section class="card">
+  <h2>IPهای ثبت‌شده</h2>
+  <div class="table-scroll">
+  <table>
+    <thead>
+      <tr>
+        <th>IP</th>
+        <th>برچسب</th>
+        <th>وضعیت</th>
+        <th>افزوده‌شده</th>
+        <th>انقضا</th>
+        <th>باقی‌مانده</th>
+        <th>ورودی</th>
+        <th>خروجی</th>
+        <th>عملیات</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in clients %}
+      <tr class="{{ 'row-expired' if c.expired else '' }}">
+        <td class="mono">{{ c.ip }}</td>
+        <td>{{ c.label or '—' }}</td>
+        <td>
+          {% if c.expired %}
+            <span class="badge badge-bad">منقضی</span>
+          {% else %}
+            <span class="badge badge-ok">فعال</span>
+          {% endif %}
+        </td>
+        <td>{{ c.created_at | fmt_ts }}</td>
+        <td>{{ c.expires_at | fmt_ts }}</td>
+        <td>
+          {% if c.expired %}—{% else %}{{ c.days_left }} روز و {{ c.hours_left }} ساعت{% endif %}
+        </td>
+        <td class="mono">{{ c.bytes_in | human_bytes }}</td>
+        <td class="mono">{{ c.bytes_out | human_bytes }}</td>
+        <td class="actions">
+          <!-- تمدید سریع ۳۰ روزه -->
+          <form method="post" action="{{ url_for('extend_ip') }}" class="i">
+            <input type="hidden" name="ip" value="{{ c.ip }}">
+            <input type="number" name="days" value="30" min="1" class="tiny">
+            <button class="btn btn-small" type="submit">تمدید</button>
+          </form>
+          <!-- حذف -->
+          <form method="post" action="{{ url_for('remove_ip') }}" class="i"
+                onsubmit="return confirm('حذف {{ c.ip }} ؟');">
+            <input type="hidden" name="ip" value="{{ c.ip }}">
+            <button class="btn btn-small btn-danger" type="submit">حذف</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="9" class="empty">هنوز IP‌ای اضافه نشده است.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="hint">تغییرات حداکثر ظرف چند دقیقه (بازه‌ی سرویس سینک) روی فایروال اعمال می‌شوند.</p>
+</section>
+
+<!-- تغییر پسورد -->
+<section class="card">
+  <h2>تغییر پسورد ادمین</h2>
+  <form method="post" action="{{ url_for('change_password') }}" class="inline-form">
+    <input type="password" name="current" placeholder="پسورد فعلی" required>
+    <input type="password" name="new" placeholder="پسورد جدید (حداقل ۶ کاراکتر)" required>
+    <button class="btn" type="submit">تغییر پسورد</button>
+  </form>
+</section>
+
+{% endblock %}

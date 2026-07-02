@@ -1,0 +1,24 @@
+# -----------------------------------------------------------------------------
+# smartdns-panel.service — سرویس پنل مدیریت وب (Flask + gunicorn)
+# -----------------------------------------------------------------------------
+# مسیرها هنگام نصب توسط install.sh با مقادیر واقعی جایگزین می‌شوند.
+[Unit]
+Description=Smart DNS Web Admin Panel
+After=network.target
+
+[Service]
+Type=simple
+# متغیرهای پیکربندی از فایل settings.env خوانده می‌شوند
+EnvironmentFile=__INSTALL_DIR__/settings.env
+WorkingDirectory=__INSTALL_DIR__/panel
+# اجرای پنل با gunicorn روی هاست/پورت تعیین‌شده در settings.env
+ExecStart=__INSTALL_DIR__/venv/bin/gunicorn \
+    --chdir __INSTALL_DIR__/panel \
+    --bind ${PANEL_HOST}:${PANEL_PORT} \
+    --workers 2 \
+    app:app
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

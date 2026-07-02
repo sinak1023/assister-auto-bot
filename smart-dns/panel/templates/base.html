@@ -1,0 +1,35 @@
+<!--
+  base.html — قالب پایه‌ی پنل مدیریت Smart DNS.
+  سایر صفحه‌ها این قالب را extend می‌کنند.
+-->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Smart DNS Panel{% endblock %}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<div class="wrap">
+  <header class="topbar">
+    <div class="brand">🛰️ Smart DNS Panel</div>
+    {% if session.get('logged_in') %}
+    <nav>
+      <span class="user">👤 {{ session.get('user') }}</span>
+      <a class="btn btn-ghost" href="{{ url_for('logout') }}">خروج</a>
+    </nav>
+    {% endif %}
+  </header>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flashes">
+        {% for category, msg in messages %}
+          <div class="flash flash-{{ category }}">{{ msg }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="foot">Smart DNS &middot; مدیریت whitelist و مصرف ترافیک</footer>
+</div>

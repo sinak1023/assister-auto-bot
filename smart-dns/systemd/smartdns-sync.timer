@@ -1,0 +1,17 @@
+# -----------------------------------------------------------------------------
+# smartdns-sync.timer — تایمر اجرای دوره‌ای سرویس سینک
+# -----------------------------------------------------------------------------
+# whitelist و آمار مصرف هر ۲ دقیقه سینک می‌شوند و منقضی‌شده‌ها حذف می‌گردند.
+[Unit]
+Description=Run Smart DNS sync every 2 minutes
+
+[Timer]
+# ۳۰ ثانیه پس از بوت (بازسازی فایروال پس از ری‌استارت سرور)
+OnBootSec=30s
+# سپس هر ۲ دقیقه
+OnUnitActiveSec=2min
+AccuracySec=15s
+Unit=smartdns-sync.service
+
+[Install]
+WantedBy=timers.target

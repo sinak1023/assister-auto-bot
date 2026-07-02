@@ -1,0 +1,17 @@
+<!-- login.html — صفحه‌ی ورود ادمین -->
+{% extends "base.html" %}
+{% block title %}ورود — Smart DNS Panel{% endblock %}
+{% block content %}
+<div class="login-card">
+  <h1>ورود مدیر</h1>
+  <form method="post" action="{{ url_for('login') }}">
+    <label>نام کاربری</label>
+    <input type="text" name="username" autocomplete="username" required autofocus>
+
+    <label>پسورد</label>
+    <input type="password" name="password" autocomplete="current-password" required>
+
+    <button class="btn btn-primary" type="submit">ورود</button>
+  </form>
+</div>
+{% endblock %}

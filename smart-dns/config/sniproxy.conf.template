@@ -1,0 +1,57 @@
+# -----------------------------------------------------------------------------
+# sniproxy.conf  —  قالب کانفیگ SNI Proxy
+# -----------------------------------------------------------------------------
+# این فایل توسط scripts/generate_dns_config.py پردازش می‌شود:
+#   - بخش __PROXY_TABLE__ با ورودی‌های ساخته‌شده از config/domains.list جایگزین
+#     می‌شود.
+#
+# نکته‌ی مهم:
+#   SNI Proxy برای رزولوشن نام دامنه‌ی مقصد باید از یک DNS واقعی (upstream)
+#   استفاده کند، نه از dnsmasq محلی؛ چون dnsmasq برای دامنه‌های هدف IP خودِ
+#   سرور را برمی‌گرداند و باعث حلقه (loop) می‌شود. به همین دلیل بلوک resolver
+#   مستقیماً به __UPSTREAM_DNS__ اشاره می‌کند.
+# -----------------------------------------------------------------------------
+
+user daemon
+pidfile /var/run/sniproxy/sniproxy.pid
+
+# رزولور مستقل برای یافتن IP واقعی مقصد (جلوگیری از حلقه با dnsmasq محلی)
+resolver {
+    nameserver __UPSTREAM_DNS__
+    mode ipv4_only
+}
+
+error_log {
+    filename /var/log/sniproxy/error.log
+    priority notice
+}
+
+# لاگ دسترسی — برای تحلیل و آمار مصرف در صورت نیاز استفاده می‌شود
+access_log {
+    filename /var/log/sniproxy/access.log
+    priority notice
+}
+
+# ----------------------------- HTTP (پورت 80) -----------------------------
+listen 80 {
+    proto http
+    table https_hosts
+    access_log {
+        filename /var/log/sniproxy/http_access.log
+    }
+}
+
+# ----------------------------- HTTPS (پورت 443) ---------------------------
+listen 443 {
+    proto tls
+    table https_hosts
+    access_log {
+        filename /var/log/sniproxy/tls_access.log
+    }
+}
+
+# جدول مسیریابی بر اساس SNI — فقط دامنه‌های هدف پروکسی می‌شوند.
+# هر خط: <regex دامنه>  *  (یعنی به همان hostِ درخواستی، رزولو و فوروارد شود)
+table https_hosts {
+__PROXY_TABLE__
+}

@@ -1,0 +1,13 @@
+# -----------------------------------------------------------------------------
+# smartdns-sync.service — اجرای یک‌باره‌ی اسکریپت سینک whitelist و آمار مصرف
+# -----------------------------------------------------------------------------
+# این سرویس از نوع oneshot است و توسط smartdns-sync.timer به‌صورت دوره‌ای
+# فراخوانی می‌شود. همچنین هنگام بوت اجرا می‌شود تا فایروال بازسازی گردد.
+[Unit]
+Description=Smart DNS whitelist & traffic sync (oneshot)
+After=network.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=__INSTALL_DIR__/settings.env
+ExecStart=__INSTALL_DIR__/venv/bin/python __INSTALL_DIR__/scripts/sync_whitelist.py

@@ -1,0 +1,4 @@
+# وابستگی‌های پنل مدیریت Smart DNS
+Flask>=3.0,<4.0
+Werkzeug>=3.0,<4.0
+gunicorn>=21.0
