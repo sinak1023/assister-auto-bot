@@ -17,24 +17,36 @@
  */
 
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Space_Grotesk, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { Navbar } from "@/components/Navbar";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Display — Space Grotesk: section titles + the health-factor gauge headline.
+const display = Space_Grotesk({
+  variable: "--font-display",
   subsets: ["latin"],
+  weight: ["500", "600", "700"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+// Body — IBM Plex Sans: UI copy and labels (institutional, legible; not Inter).
+const body = IBM_Plex_Sans({
+  variable: "--font-body",
   subsets: ["latin"],
+  weight: ["400", "500", "600"],
+});
+
+// Data — IBM Plex Mono: every balance, rate, HF and address (tabular figures).
+const dataMono = IBM_Plex_Mono({
+  variable: "--font-data",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
 });
 
 export const metadata: Metadata = {
-  title: "Arc Borrow & Lend",
-  description: "Deposit cirBTC as collateral and borrow USDC on Arc Testnet",
+  title: "Arc Vault — Lend & Borrow",
+  description:
+    "Institution-grade lending on Arc: borrow USDC against cirBTC with live health factors, liquidations, dynamic rates, and on-chain credit.",
 };
 
 export default function RootLayout({
@@ -45,7 +57,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark font-sans`}
+      className={`${display.variable} ${body.variable} ${dataMono.variable} h-full antialiased dark font-sans`}
     >
       <body className="min-h-full flex flex-col">
         <Providers>
