@@ -24,7 +24,20 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { config } from "@/lib/wagmi";
 import { WalletProvider } from "@/contexts/WalletContext";
 
-const queryClient = new QueryClient();
+// Tuned for a public, rate-limited RPC: retry transient failures with backoff
+// (so a 429 doesn't blank the UI), keep the last good data while refetching,
+// and don't hammer the node on every window focus.
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 4,
+      retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
+      refetchOnWindowFocus: false,
+      staleTime: 4_000,
+      gcTime: 5 * 60_000,
+    },
+  },
+});
 
 export function Providers({ children }: { children: ReactNode }) {
   return (

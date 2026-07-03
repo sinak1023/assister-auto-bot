@@ -38,7 +38,7 @@ import { formatPrice } from "@/lib/format";
 const ZERO = "0x0000000000000000000000000000000000000000";
 
 export default function LendingPage() {
-  const { address, isConnected } = useWallet();
+  const { address, isConnected, isWrongChain, switchToArc, isSwitchingChain } = useWallet();
   const mounted = useSyncExternalStore(() => () => {}, () => true, () => false);
   const connected = mounted && isConnected;
 
@@ -72,6 +72,21 @@ export default function LendingPage() {
           <p className="font-mono text-lg font-semibold text-gold">{formatPrice(s.price, s.priceDecimals)}</p>
         </div>
       </div>
+
+      {connected && isWrongChain && (
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-caution/30 bg-caution/10 px-4 py-3 text-sm text-caution">
+          <span>
+            <span className="font-medium">Wrong network.</span> Switch your wallet to Arc Testnet (chain id 5042002) to transact.
+          </span>
+          <button
+            onClick={switchToArc}
+            disabled={isSwitchingChain}
+            className="rounded-md bg-caution px-3 py-1.5 text-xs font-semibold text-caution-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+          >
+            {isSwitchingChain ? "Switching…" : "Switch to Arc"}
+          </button>
+        </div>
+      )}
 
       {notDeployed && (
         <div className="mb-6 rounded-lg border border-caution/30 bg-caution/10 px-4 py-3 text-sm text-caution">

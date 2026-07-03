@@ -19,11 +19,11 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from "react";
-import { useChainId, useReadContract } from "wagmi";
+import { useReadContract } from "wagmi";
 import { formatUnits } from "viem";
-import { arcTestnet, LIVE_STATE_REFETCH_INTERVAL } from "@/lib/wagmi";
+import { LIVE_STATE_REFETCH_INTERVAL } from "@/lib/wagmi";
 import { useWallet } from "@/contexts/WalletContext";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CIRBTC_ADDRESS, USDC_ADDRESS, ERC20_ABI, COLLATERAL_DECIMALS, LOAN_DECIMALS } from "@/lib/contracts";
@@ -47,8 +47,7 @@ function fmtBalance(value: bigint, decimals: number, maxFractionDigits: number):
 }
 
 export function ConnectWallet() {
-  const { address, isConnected, walletType, disconnect } = useWallet();
-  const chainId = useChainId();
+  const { address, isConnected, walletType, disconnect, isWrongChain, switchToArc, isSwitchingChain } = useWallet();
   const mounted = useSyncExternalStore(() => () => { }, () => true, () => false);
   const queryClient = useQueryClient();
 
@@ -61,6 +60,7 @@ export function ConnectWallet() {
       enabled: !!address && CIRBTC_ADDRESS !== "0x0000000000000000000000000000000000000000",
       refetchInterval: LIVE_STATE_REFETCH_INTERVAL,
       refetchIntervalInBackground: false,
+      placeholderData: keepPreviousData,
     },
   });
 
@@ -73,13 +73,18 @@ export function ConnectWallet() {
       enabled: !!address && USDC_ADDRESS !== "0x0000000000000000000000000000000000000000",
       refetchInterval: LIVE_STATE_REFETCH_INTERVAL,
       refetchIntervalInBackground: false,
+      placeholderData: keepPreviousData,
     },
   });
 
   const mintUsdc = useMintUsdc();
 
+  // Refetch just the balance reads after a mint — don't invalidate the whole
+  // cache (which would refetch every position/market query at once).
   useEffect(() => {
-    if (mintUsdc.isSuccess) queryClient.invalidateQueries();
+    if (mintUsdc.isSuccess) {
+      queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "readContract" });
+    }
   }, [mintUsdc.isSuccess, queryClient]);
 
   if (!mounted) return null;
@@ -88,7 +93,6 @@ export function ConnectWallet() {
     return <ConnectDialog />;
   }
 
-  const isWrongChain = walletType === "metamask" && chainId !== arcTestnet.id;
   const formattedCirBtcBalance = cirBtcBalance !== undefined
     ? fmtBalance(cirBtcBalance as bigint, COLLATERAL_DECIMALS, 8)
     : null;
@@ -160,7 +164,14 @@ export function ConnectWallet() {
       {isWrongChain && (
         <>
           <span className="text-muted-foreground/40 hidden sm:inline">|</span>
-          <span className="text-destructive font-medium">Wrong Network</span>
+          <Button
+            size="sm"
+            onClick={switchToArc}
+            disabled={isSwitchingChain}
+            className="bg-caution text-caution-foreground hover:opacity-90"
+          >
+            {isSwitchingChain ? "Switching…" : "Switch to Arc"}
+          </Button>
         </>
       )}
       <Button variant="outline" size="sm" onClick={disconnect}>

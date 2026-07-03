@@ -55,6 +55,10 @@ export const arcTestnet: Chain = {
 
 export const config = createConfig({
   chains: [arcTestnet],
+  // EIP-6963 discovery surfaces every injected wallet the user has installed
+  // (MetaMask, Rabby, OKX, Coinbase, Brave, …) as its own connector. The plain
+  // injected() connector stays as a fallback for wallets that don't announce.
+  multiInjectedProviderDiscovery: true,
   connectors: [injected()],
   pollingInterval: WAGMI_POLLING_INTERVAL,
   transports: {

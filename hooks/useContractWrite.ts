@@ -99,11 +99,21 @@ export function useContractWrite() {
         const pollForReceipt = async () => {
           while (callIdRef.current === callId) {
             try {
-              const { receipt } = await client.waitForUserOperationReceipt({
+              const result = await client.waitForUserOperationReceipt({
                 hash: userOpHash,
                 timeout: 60_000,
               });
               if (callIdRef.current !== callId) return;
+              const { receipt } = result;
+              // An included userOp can still have reverted (e.g. a require
+              // failed). Treat that as an error, not a success — otherwise the
+              // UI reports "success" while nothing actually changed on-chain.
+              if (result.success === false || receipt.status === "reverted") {
+                setIsConfirming(false);
+                setIsSubmitted(false);
+                setError(new Error("Transaction reverted — the contract rejected it."));
+                return;
+              }
               setHash(receipt.transactionHash);
               setIsConfirming(false);
               setIsSubmitted(false);

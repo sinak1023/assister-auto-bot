@@ -24,6 +24,7 @@ import {
   useState,
   useCallback,
   useEffect,
+  useMemo,
   type ReactNode,
 } from "react";
 import { type Address, type Hex, encodeFunctionData, parseGwei } from "viem";
@@ -32,6 +33,9 @@ import {
   useConnect,
   useConnectors,
   useDisconnect,
+  useChainId,
+  useSwitchChain,
+  type Connector,
 } from "wagmi";
 import {
   toWebAuthnCredential,
@@ -62,7 +66,12 @@ interface CircleBundlerClient {
     calls: { to: Hex; data: Hex; value?: bigint }[];
     paymaster: true;
   }) => Promise<Hex>;
-  waitForUserOperationReceipt: (args: { hash: Hex; timeout?: number }) => Promise<{ receipt: { transactionHash: Hex } }>;
+  waitForUserOperationReceipt: (args: { hash: Hex; timeout?: number }) => Promise<{
+    // `success` is false when the userOp was included but the inner call
+    // reverted — the write must be surfaced as an error, not a success.
+    success?: boolean;
+    receipt: { transactionHash: Hex; status?: "success" | "reverted" | string };
+  }>;
 }
 
 interface WalletContextValue {
@@ -70,7 +79,15 @@ interface WalletContextValue {
   isConnected: boolean;
   walletType: WalletType;
   bundlerClient: CircleBundlerClient | null;
+  // All installed injected wallets (EIP-6963), plus a generic fallback.
+  injectedConnectors: readonly Connector[];
+  connectInjected: (connector: Connector) => void;
   connectMetaMask: () => void;
+  // Network awareness for MetaMask/injected wallets.
+  chainId: number;
+  isWrongChain: boolean;
+  switchToArc: () => void;
+  isSwitchingChain: boolean;
   // Resolves true when connected, false when the user cancelled the passkey
   // prompt or the attempt failed — callers use this to decide whether to close
   // the connect dialog (keep it open on cancel/failure so the user can retry).
@@ -98,6 +115,17 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const { mutate: wagmiConnect, isPending: wagmiPending } = useConnect();
   const connectors = useConnectors();
   const { mutate: wagmiDisconnect } = useDisconnect();
+  const chainId = useChainId();
+  const { switchChain, isPending: isSwitchingChain } = useSwitchChain();
+
+  // Prefer EIP-6963-discovered wallets (each has its own id/name/icon); fall
+  // back to the generic injected connector when nothing announced itself.
+  const injectedConnectors = useMemo<readonly Connector[]>(() => {
+    const discovered = connectors.filter((c) => c.type === "injected" && c.id !== "injected");
+    if (discovered.length > 0) return discovered;
+    const generic = connectors.find((c) => c.type === "injected");
+    return generic ? [generic] : [];
+  }, [connectors]);
 
   // Circle state
   const [circleAddress, setCircleAddress] = useState<Address | undefined>();
@@ -252,15 +280,32 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     if (stored.address) setCircleAddress((prev) => prev ?? stored.address);
   }, [wagmiConnected]);
 
+  const connectInjected = useCallback(
+    (connector: Connector) => {
+      // Clear Circle state if active
+      if (circleAddress) {
+        setCircleAddress(undefined);
+        setBundlerClient(null);
+        localStorage.removeItem(STORAGE_KEY);
+      }
+      wagmiConnect({ connector });
+    },
+    [circleAddress, wagmiConnect],
+  );
+
+  // Kept for compatibility — connects the first available injected wallet.
   const connectMetaMask = useCallback(() => {
-    // Clear Circle state if active
-    if (circleAddress) {
-      setCircleAddress(undefined);
-      setBundlerClient(null);
-      localStorage.removeItem(STORAGE_KEY);
-    }
-    wagmiConnect({ connector: connectors[0] });
-  }, [circleAddress, wagmiConnect, connectors]);
+    const first = injectedConnectors[0];
+    if (first) connectInjected(first);
+  }, [injectedConnectors, connectInjected]);
+
+  // Switch the wallet to Arc Testnet; wagmi adds the chain (from config) if the
+  // wallet doesn't have it yet, using its name/RPC/native-currency/explorer.
+  const switchToArc = useCallback(() => {
+    switchChain({ chainId: arcTestnet.id });
+  }, [switchChain]);
+
+  const isWrongChain = walletType === "metamask" && chainId !== arcTestnet.id;
 
   const disconnect = useCallback(() => {
     if (walletType === "metamask") {
@@ -289,7 +334,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         isConnected,
         walletType,
         bundlerClient,
+        injectedConnectors,
+        connectInjected,
         connectMetaMask,
+        chainId,
+        isWrongChain,
+        switchToArc,
+        isSwitchingChain,
         connectCircle,
         ensureCircleSigner,
         disconnect,

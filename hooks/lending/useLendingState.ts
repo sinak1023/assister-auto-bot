@@ -18,8 +18,9 @@
 
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { useReadContracts } from "wagmi";
+import { keepPreviousData } from "@tanstack/react-query";
 import { type Abi, type Address } from "viem";
 import { LENDING_ABI } from "@/lib/contracts/abis/lending";
 import { ORACLE_ABI } from "@/lib/contracts/abis/oracle";
@@ -91,7 +92,7 @@ export function useLendingState(userAddress: Address | undefined) {
           ]
         : []),
     ],
-    query: { enabled: deployed, refetchInterval: REFETCH_INTERVAL },
+    query: { enabled: deployed, refetchInterval: REFETCH_INTERVAL, placeholderData: keepPreviousData },
   });
 
   // ── Oracle reads (separate call: different ABI) ──
@@ -100,11 +101,23 @@ export function useLendingState(userAddress: Address | undefined) {
       { ...oracle, functionName: "getPrice" },
       { ...oracle, functionName: "decimals" },
     ],
-    query: { enabled: ORACLE_ADDRESS !== ZERO, refetchInterval: REFETCH_INTERVAL },
+    query: { enabled: ORACLE_ADDRESS !== ZERO, refetchInterval: REFETCH_INTERVAL, placeholderData: keepPreviousData },
   });
 
   const d = marketRead.data;
-  const positionCount = userAddress ? Number((d?.[14]?.result as bigint | undefined) ?? 0n) : 0;
+
+  // Position count is "sticky": if a single call in the batch transiently fails
+  // (common on the public RPC), the raw read is undefined — falling back to 0
+  // would disable the position read and make ALL positions vanish. We keep the
+  // last known count per address instead, so positions don't flicker away.
+  const rawCount = userAddress ? (d?.[14]?.result as bigint | undefined) : undefined;
+  const stickyCount = useRef<{ addr: Address | undefined; count: number }>({ addr: undefined, count: 0 });
+  if (stickyCount.current.addr !== userAddress) {
+    stickyCount.current = { addr: userAddress, count: rawCount !== undefined ? Number(rawCount) : 0 };
+  } else if (rawCount !== undefined) {
+    stickyCount.current.count = Number(rawCount);
+  }
+  const positionCount = userAddress ? stickyCount.current.count : 0;
 
   // ── Per-position details (depends on positionCount) ──
   const positionRead = useReadContracts({
@@ -116,7 +129,7 @@ export function useLendingState(userAddress: Address | undefined) {
             args: [userAddress, BigInt(i)],
           }))
         : [],
-    query: { enabled: deployed && positionCount > 0, refetchInterval: REFETCH_INTERVAL },
+    query: { enabled: deployed && positionCount > 0, refetchInterval: REFETCH_INTERVAL, placeholderData: keepPreviousData },
   });
 
   // ── Token balances + allowances ──
@@ -129,7 +142,7 @@ export function useLendingState(userAddress: Address | undefined) {
           { address: USDC_ADDRESS, abi: ERC20_ABI, functionName: "allowance", args: [userAddress, LENDING_ADDRESS] },
         ]
       : [],
-    query: { enabled: deployed && !!userAddress, refetchInterval: REFETCH_INTERVAL },
+    query: { enabled: deployed && !!userAddress, refetchInterval: REFETCH_INTERVAL, placeholderData: keepPreviousData },
   });
 
   const positions: PositionDetails[] = useMemo(() => {
@@ -160,12 +173,13 @@ export function useLendingState(userAddress: Address | undefined) {
     ? (d?.[18]?.result as readonly [bigint, bigint, bigint] | undefined)
     : undefined;
 
-  function refetch() {
+  const refetch = useCallback(() => {
     marketRead.refetch();
     oracleRead.refetch();
     positionRead.refetch();
     tokenRead.refetch();
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [marketRead.refetch, oracleRead.refetch, positionRead.refetch, tokenRead.refetch]);
 
   return {
     deployed,

@@ -351,11 +351,10 @@ describe("LendingBorrowingV2", () => {
       ).to.be.revertedWithCustomError(lending, "InvalidParam");
     });
 
-    it("only the oracle owner can move the price", async () => {
+    it("lets anyone move the demo price (permissionless testnet oracle)", async () => {
       const { oracle, alice } = await deployFixture();
-      await expect(
-        oracle.connect(alice).setPrice(1n),
-      ).to.be.revertedWith("Ownable: caller is not the owner");
+      await oracle.connect(alice).setPrice(50_000n * UNIT);
+      expect(await oracle.getPrice()).to.equal(50_000n * UNIT);
     });
   });
 

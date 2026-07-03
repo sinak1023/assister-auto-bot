@@ -35,7 +35,7 @@ import {
 type View = "main" | "passkey";
 
 export function ConnectDialog() {
-  const { connectMetaMask, connectCircle, isConnecting, circleError } = useWallet();
+  const { injectedConnectors, connectInjected, connectCircle, isConnecting, circleError } = useWallet();
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<View>("main");
 
@@ -44,8 +44,8 @@ export function ConnectDialog() {
     if (!next) setView("main");
   };
 
-  const handleMetaMask = () => {
-    connectMetaMask();
+  const handleConnect = (connector: (typeof injectedConnectors)[number]) => {
+    connectInjected(connector);
     setOpen(false);
   };
 
@@ -87,21 +87,34 @@ export function ConnectDialog() {
               </DialogHeader>
 
               <div className="flex flex-col gap-3">
-                <button
-                  onClick={handleMetaMask}
-                  disabled={isConnecting}
-                  className="flex items-center gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-muted disabled:opacity-50"
-                >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-100 text-orange-600 font-bold text-lg">
-                    M
+                {injectedConnectors.length === 0 ? (
+                  <div className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
+                    No browser wallet detected. Install MetaMask, Rabby, or another
+                    extension — or use a Passkey below.
                   </div>
-                  <div>
-                    <div className="font-medium">MetaMask</div>
-                    <div className="text-xs text-muted-foreground">
-                      Connect with browser extension
-                    </div>
-                  </div>
-                </button>
+                ) : (
+                  injectedConnectors.map((connector) => (
+                    <button
+                      key={connector.uid}
+                      onClick={() => handleConnect(connector)}
+                      disabled={isConnecting}
+                      className="flex items-center gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-muted disabled:opacity-50"
+                    >
+                      <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-muted font-bold text-lg">
+                        {connector.icon ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={connector.icon} alt="" className="h-full w-full object-contain" />
+                        ) : (
+                          connector.name.charAt(0)
+                        )}
+                      </div>
+                      <div>
+                        <div className="font-medium">{connector.name}</div>
+                        <div className="text-xs text-muted-foreground">Connect with browser extension</div>
+                      </div>
+                    </button>
+                  ))
+                )}
 
                 <button
                   onClick={() => setView("passkey")}
