@@ -41,6 +41,11 @@ const config: HardhatUserConfig = {
     },
   },
   networks: {
+    // In-process/`hardhat node` chain. Mirrors Arc's chain id so a local node
+    // can stand in for the testnet during end-to-end verification.
+    hardhat: {
+      chainId: 5042002,
+    },
     // Local Hardhat node for end-to-end proving (npx hardhat node).
     localhost: {
       url: "http://127.0.0.1:8545",

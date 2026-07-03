@@ -18,79 +18,203 @@
 
 "use client";
 
+import { useMemo } from "react";
 import { useReadContracts } from "wagmi";
-import { type Address, formatUnits } from "viem";
+import { type Abi, type Address } from "viem";
 import { LENDING_ABI } from "@/lib/contracts/abis/lending";
-import { LENDING_ADDRESS, COLLATERAL_DECIMALS, LOAN_DECIMALS } from "@/lib/contracts/addresses";
+import { ORACLE_ABI } from "@/lib/contracts/abis/oracle";
+import { ERC20_ABI } from "@/lib/contracts/abis/erc20";
+import {
+  LENDING_ADDRESS,
+  ORACLE_ADDRESS,
+  USDC_ADDRESS,
+  CIRBTC_ADDRESS,
+} from "@/lib/contracts/addresses";
 
-function fmt(value: bigint, decimals: number, opts: Intl.NumberFormatOptions): string {
-  const n = parseFloat(formatUnits(value, decimals));
-  return n === 0 ? "0" : n.toLocaleString("en-US", opts);
+const ZERO = "0x0000000000000000000000000000000000000000";
+
+export interface PositionDetails {
+  id: number;
+  collateral: bigint;
+  debt: bigint;
+  collateralValueLoan: bigint;
+  healthFactor: bigint;
+  maxAdditionalBorrow: bigint;
+  active: boolean;
 }
 
-export function useLendingState(userAddress: Address | undefined) {
-  const lendingContract = {
-    address: LENDING_ADDRESS,
-    abi: LENDING_ABI,
-  } as const;
+export interface CreditData {
+  loansFullyRepaid: bigint;
+  totalRepaidVolume: bigint;
+  liquidations: bigint;
+  loansOpened: bigint;
+}
 
-  const { data, isLoading, refetch } = useReadContracts({
+// Public-RPC-friendly cadence: fast enough that the gauge feels live, gentle
+// enough to avoid tripping the public endpoint's rate limit. Callers also
+// refetch() immediately after their own actions and after a price change.
+const REFETCH_INTERVAL = 12_000;
+
+export function useLendingState(userAddress: Address | undefined) {
+  // ABIs typed as `Abi` (not the full literal): the V2 ABI is large enough that
+  // wagmi's deep result-type inference over many contracts hits "type
+  // instantiation is excessively deep". Results are cast explicitly below.
+  const lending = { address: LENDING_ADDRESS, abi: LENDING_ABI as Abi } as const;
+  const oracle = { address: ORACLE_ADDRESS, abi: ORACLE_ABI as Abi } as const;
+  const deployed = LENDING_ADDRESS !== ZERO;
+
+  // ── Market-wide + (optional) per-user aggregate reads (all on the lending contract) ──
+  const marketRead = useReadContracts({
     contracts: [
-      { ...lendingContract, functionName: "collateralFactor" },
-      { ...lendingContract, functionName: "poolLiquidity" },
+      { ...lending, functionName: "collateralFactorBps" },
+      { ...lending, functionName: "maxCollateralFactorBps" },
+      { ...lending, functionName: "liquidationThresholdBps" },
+      { ...lending, functionName: "liquidationBonusBps" },
+      { ...lending, functionName: "closeFactorBps" },
+      { ...lending, functionName: "poolLiquidity" },
+      { ...lending, functionName: "totalBorrows" },
+      { ...lending, functionName: "utilization" },
+      { ...lending, functionName: "borrowAPR" },
+      { ...lending, functionName: "supplyAPY" },
+      { ...lending, functionName: "baseRatePerYear" },
+      { ...lending, functionName: "slope1" },
+      { ...lending, functionName: "slope2" },
+      { ...lending, functionName: "kink" },
       ...(userAddress
         ? [
-            { ...lendingContract, functionName: "collateralBalances", args: [userAddress] },
-            { ...lendingContract, functionName: "loans", args: [userAddress] },
-            { ...lendingContract, functionName: "maxBorrow", args: [userAddress] },
-            { ...lendingContract, functionName: "availableCollateral", args: [userAddress] },
+            { ...lending, functionName: "positionCount", args: [userAddress] },
+            { ...lending, functionName: "creditScore", args: [userAddress] },
+            { ...lending, functionName: "effectiveCollateralFactorBps", args: [userAddress] },
+            { ...lending, functionName: "credit", args: [userAddress] },
+            { ...lending, functionName: "accountSummary", args: [userAddress] },
+            { ...lending, functionName: "accountHealthFactor", args: [userAddress] },
           ]
         : []),
     ],
-    query: {
-      enabled: LENDING_ADDRESS !== "0x0000000000000000000000000000000000000000",
-      refetchInterval: 15_000,
-    },
+    query: { enabled: deployed, refetchInterval: REFETCH_INTERVAL },
   });
 
-  const collateralFactor = data?.[0]?.result as bigint | undefined;
-  const poolLiquidity = data?.[1]?.result as bigint | undefined;
-  const collateralBalance = userAddress ? (data?.[2]?.result as bigint | undefined) : undefined;
-  const loan = userAddress
-    ? (data?.[3]?.result as
-        | readonly [bigint, bigint, boolean]
-        | undefined)
+  // ── Oracle reads (separate call: different ABI) ──
+  const oracleRead = useReadContracts({
+    contracts: [
+      { ...oracle, functionName: "getPrice" },
+      { ...oracle, functionName: "decimals" },
+    ],
+    query: { enabled: ORACLE_ADDRESS !== ZERO, refetchInterval: REFETCH_INTERVAL },
+  });
+
+  const d = marketRead.data;
+  const positionCount = userAddress ? Number((d?.[14]?.result as bigint | undefined) ?? 0n) : 0;
+
+  // ── Per-position details (depends on positionCount) ──
+  const positionRead = useReadContracts({
+    contracts:
+      userAddress && positionCount > 0
+        ? Array.from({ length: positionCount }, (_, i) => ({
+            ...lending,
+            functionName: "getPositionDetails",
+            args: [userAddress, BigInt(i)],
+          }))
+        : [],
+    query: { enabled: deployed && positionCount > 0, refetchInterval: REFETCH_INTERVAL },
+  });
+
+  // ── Token balances + allowances ──
+  const tokenRead = useReadContracts({
+    contracts: userAddress
+      ? [
+          { address: CIRBTC_ADDRESS, abi: ERC20_ABI, functionName: "balanceOf", args: [userAddress] },
+          { address: USDC_ADDRESS, abi: ERC20_ABI, functionName: "balanceOf", args: [userAddress] },
+          { address: CIRBTC_ADDRESS, abi: ERC20_ABI, functionName: "allowance", args: [userAddress, LENDING_ADDRESS] },
+          { address: USDC_ADDRESS, abi: ERC20_ABI, functionName: "allowance", args: [userAddress, LENDING_ADDRESS] },
+        ]
+      : [],
+    query: { enabled: deployed && !!userAddress, refetchInterval: REFETCH_INTERVAL },
+  });
+
+  const positions: PositionDetails[] = useMemo(() => {
+    if (!positionRead.data) return [];
+    return positionRead.data
+      .map((r, i) => {
+        const res = r.result as
+          | readonly [bigint, bigint, bigint, bigint, bigint, boolean]
+          | undefined;
+        if (!res) return null;
+        return {
+          id: i,
+          collateral: res[0],
+          debt: res[1],
+          collateralValueLoan: res[2],
+          healthFactor: res[3],
+          maxAdditionalBorrow: res[4],
+          active: res[5],
+        } satisfies PositionDetails;
+      })
+      .filter((p): p is PositionDetails => p !== null && p.active);
+  }, [positionRead.data]);
+
+  const creditRaw = userAddress
+    ? (d?.[17]?.result as readonly [bigint, bigint, bigint, bigint] | undefined)
     : undefined;
-  const maxBorrow = userAddress ? (data?.[4]?.result as bigint | undefined) : undefined;
-  const availableCollateral = userAddress ? (data?.[5]?.result as bigint | undefined) : undefined;
+  const summaryRaw = userAddress
+    ? (d?.[18]?.result as readonly [bigint, bigint, bigint] | undefined)
+    : undefined;
+
+  function refetch() {
+    marketRead.refetch();
+    oracleRead.refetch();
+    positionRead.refetch();
+    tokenRead.refetch();
+  }
 
   return {
-    isLoading,
+    deployed,
+    isLoading: marketRead.isLoading,
     refetch,
-    // raw bigints
-    collateralFactor,
-    poolLiquidity,
-    collateralBalance,
-    loanAmount: loan?.[0],
-    loanCollateral: loan?.[1],
-    loanIsActive: loan?.[2] ?? false,
-    maxBorrow,
-    availableCollateral,
-    // formatted strings
-    poolLiquidityFormatted: poolLiquidity !== undefined
-      ? parseFloat(formatUnits(poolLiquidity, LOAN_DECIMALS)).toLocaleString("en-US", { maximumFractionDigits: 2 })
-      : "—",
-    collateralBalanceFormatted: collateralBalance !== undefined
-      ? fmt(collateralBalance, COLLATERAL_DECIMALS, { minimumFractionDigits: 6, maximumFractionDigits: 8 })
-      : "—",
-    loanAmountFormatted: loan?.[0] !== undefined
-      ? fmt(loan[0], LOAN_DECIMALS, { minimumFractionDigits: 6, maximumFractionDigits: 6 })
-      : "—",
-    maxBorrowFormatted: maxBorrow !== undefined
-      ? fmt(maxBorrow, LOAN_DECIMALS, { minimumFractionDigits: 6, maximumFractionDigits: 6 })
-      : "—",
-    availableCollateralFormatted: availableCollateral !== undefined
-      ? fmt(availableCollateral, COLLATERAL_DECIMALS, { minimumFractionDigits: 6, maximumFractionDigits: 8 })
-      : "—",
+
+    // Market
+    collateralFactorBps: d?.[0]?.result as bigint | undefined,
+    maxCollateralFactorBps: d?.[1]?.result as bigint | undefined,
+    liquidationThresholdBps: d?.[2]?.result as bigint | undefined,
+    liquidationBonusBps: d?.[3]?.result as bigint | undefined,
+    closeFactorBps: d?.[4]?.result as bigint | undefined,
+    poolLiquidity: d?.[5]?.result as bigint | undefined,
+    totalBorrows: d?.[6]?.result as bigint | undefined,
+    utilization: d?.[7]?.result as bigint | undefined,
+    borrowAPR: d?.[8]?.result as bigint | undefined,
+    supplyAPY: d?.[9]?.result as bigint | undefined,
+    baseRatePerYear: d?.[10]?.result as bigint | undefined,
+    slope1: d?.[11]?.result as bigint | undefined,
+    slope2: d?.[12]?.result as bigint | undefined,
+    kink: d?.[13]?.result as bigint | undefined,
+
+    // Oracle
+    price: oracleRead.data?.[0]?.result as bigint | undefined,
+    priceDecimals: oracleRead.data?.[1]?.result as number | undefined,
+
+    // User
+    positionCount,
+    creditScore: userAddress ? (d?.[15]?.result as bigint | undefined) : undefined,
+    effectiveCollateralFactorBps: userAddress ? (d?.[16]?.result as bigint | undefined) : undefined,
+    credit: creditRaw
+      ? {
+          loansFullyRepaid: creditRaw[0],
+          totalRepaidVolume: creditRaw[1],
+          liquidations: creditRaw[2],
+          loansOpened: creditRaw[3],
+        }
+      : undefined,
+    totalCollateral: summaryRaw?.[0],
+    totalDebt: summaryRaw?.[1],
+    totalCollateralValue: summaryRaw?.[2],
+    accountHealthFactor: userAddress ? (d?.[19]?.result as bigint | undefined) : undefined,
+
+    positions,
+
+    // Tokens
+    cirBtcBalance: tokenRead.data?.[0]?.result as bigint | undefined,
+    usdcBalance: tokenRead.data?.[1]?.result as bigint | undefined,
+    cirBtcAllowance: tokenRead.data?.[2]?.result as bigint | undefined,
+    usdcAllowance: tokenRead.data?.[3]?.result as bigint | undefined,
   };
 }

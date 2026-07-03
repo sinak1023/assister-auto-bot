@@ -16,6 +16,24 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export { ERC20_ABI, TESTNET_ERC20_ABI } from "./erc20";
-export { LENDING_ABI } from "./lending";
-export { ORACLE_ABI } from "./oracle";
+export function StatCard({
+  label,
+  value,
+  sub,
+  accent,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  accent?: string;
+}) {
+  return (
+    <div className="min-w-0 rounded-lg border border-border bg-card p-4">
+      <p className="mb-1 text-xs text-muted-foreground">{label}</p>
+      <p className="truncate font-mono text-lg font-semibold" style={accent ? { color: accent } : undefined} title={value}>
+        {value}
+      </p>
+      {sub && <p className="mt-0.5 truncate text-xs text-muted-foreground">{sub}</p>}
+    </div>
+  );
+}

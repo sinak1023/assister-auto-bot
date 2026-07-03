@@ -20,7 +20,15 @@
 
 import { getSupabaseClient } from "./client";
 
-export type TxAction = "deposit" | "withdraw" | "borrow" | "repay" | "mint_usdc";
+export type TxAction =
+  | "deposit"
+  | "withdraw"
+  | "borrow"
+  | "repay"
+  | "mint_usdc"
+  | "mint_cirbtc"
+  | "open"
+  | "liquidate";
 export type TxToken = "cirBTC" | "USDC";
 export type TxStatus = "confirmed" | "failed";
 

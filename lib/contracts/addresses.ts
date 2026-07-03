@@ -30,6 +30,15 @@ export const LENDING_ADDRESS: Address =
   (process.env.NEXT_PUBLIC_LENDING_ADDRESS as Address) ??
   "0x0000000000000000000000000000000000000000";
 
+export const ORACLE_ADDRESS: Address =
+  (process.env.NEXT_PUBLIC_ORACLE_ADDRESS as Address) ??
+  "0x0000000000000000000000000000000000000000";
+
+// When true, cirBTC is a mintable demo token (deployed by deploy-lending.ts) so
+// reviewers can test without owning real cirBTC. Enables the in-app mint button.
+export const USE_MOCK_CIRBTC: boolean =
+  (process.env.NEXT_PUBLIC_USE_MOCK_CIRBTC ?? "false").toLowerCase() === "true";
+
 // cirBTC is the collateral token (8 decimals, fixed by Circle's deployment).
 // USDC is the loan token; the mock is deployed with 8 decimals so the contract's
 // percentage math stays exact with no decimal conversion. If this is ever pointed

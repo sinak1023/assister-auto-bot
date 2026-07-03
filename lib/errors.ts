@@ -19,8 +19,63 @@
 /**
  * Parse raw blockchain/wallet errors into user-friendly messages.
  */
+// LendingBorrowingV2 custom errors → plain-language explanations. The V2 ABI
+// includes these errors, so viem decodes the revert name into the message.
+const CUSTOM_ERRORS: Record<string, { title: string; detail: string }> = {
+  ExceedsBorrowLimit: {
+    title: "Over the borrow limit",
+    detail: "This would borrow more than your collateral allows. Lower the amount or add collateral.",
+  },
+  InsufficientLiquidity: {
+    title: "Not enough pool liquidity",
+    detail: "The pool doesn't have enough USDC to cover this borrow right now. Try a smaller amount.",
+  },
+  InsufficientCollateral: {
+    title: "Not enough collateral",
+    detail: "You're trying to withdraw more collateral than this position holds.",
+  },
+  WouldBeUndercollateralized: {
+    title: "Withdrawal blocked",
+    detail: "Withdrawing this much would push the position past its borrow limit. Repay some debt first.",
+  },
+  ExceedsDebt: {
+    title: "Nothing to repay",
+    detail: "This position has no outstanding debt.",
+  },
+  PositionHealthy: {
+    title: "Position is healthy",
+    detail: "Its health factor is at or above 1.0, so it can't be liquidated.",
+  },
+  NotLiquidatable: {
+    title: "Position is healthy",
+    detail: "Its health factor is at or above 1.0, so it can't be liquidated.",
+  },
+  NoSuchPosition: { title: "Position not found", detail: "That position id doesn't exist for this account." },
+  PositionInactive: { title: "Position closed", detail: "This position has been closed." },
+  ZeroAmount: { title: "Enter an amount", detail: "The amount must be greater than zero." },
+  InvalidParam: { title: "Invalid parameter", detail: "One of the values is out of the allowed range." },
+};
+
 export function parseTxError(error: Error): { title: string; detail?: string } {
   const msg = error.message || "";
+
+  // Named custom errors from the lending contract.
+  for (const [name, mapped] of Object.entries(CUSTOM_ERRORS)) {
+    if (msg.includes(name)) return mapped;
+  }
+
+  // Public RPC rate limiting under polling.
+  if (
+    msg.includes("429") ||
+    msg.includes("Too Many Requests") ||
+    msg.toLowerCase().includes("rate limit")
+  ) {
+    return {
+      title: "Network is rate-limiting requests",
+      detail:
+        "The public Arc RPC is throttling. It should recover shortly — or set NEXT_PUBLIC_RPC_URL to a dedicated provider for smoother demos.",
+    };
+  }
 
   // User rejected the transaction in their wallet
   if (
