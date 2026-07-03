@@ -75,10 +75,9 @@ export function TreasuryDashboard({
           {!connected ? (
             <p className="py-4 text-center text-sm text-muted-foreground">Connect your wallet to see your portfolio.</p>
           ) : (
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
               <StatCard label="Collateral value" value={formatUsd(totalCollateralValue)} sub="cirBTC at oracle price" />
               <StatCard label="Total debt" value={formatUsd(totalDebt)} sub="USDC owed" />
-              <StatCard label="Net exposure" value={formatUsd(totalCollateralValue !== undefined && totalDebt !== undefined ? (totalCollateralValue > totalDebt ? totalCollateralValue - totalDebt : 0n) : undefined)} sub="collateral − debt" />
               <StatCard label="Account health" value={formatHF(accountHealthFactor)} sub="aggregate HF" accent={aggColor} />
             </div>
           )}

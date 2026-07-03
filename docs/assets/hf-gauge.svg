@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="240" viewBox="0 0 720 240" font-family="'IBM Plex Sans',system-ui,sans-serif">
+  <rect width="720" height="240" rx="16" fill="#12151d"/>
+  <text x="24" y="34" fill="#f4f6fb" font-size="15" font-weight="600" font-family="'Space Grotesk',system-ui">Health Factor gauge — reacts to price in real time</text>
+
+  <!-- Gauge 1: healthy -->
+  <g transform="translate(40,64)">
+    <path d="M 12 132 A 108 108 0 0 1 228 132" fill="none" stroke="#2a2f3d" stroke-width="14" stroke-linecap="round"/>
+    <path d="M 12 132 A 108 108 0 0 1 210 71" fill="none" stroke="#4cc38a" stroke-width="14" stroke-linecap="round"/>
+    <line x1="66" y1="49" x2="72" y2="61" stroke="#f4f6fb" stroke-width="2" opacity="0.5"/>
+    <line x1="120" y1="132" x2="212" y2="86" stroke="#4cc38a" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="120" cy="132" r="7" fill="#4cc38a"/>
+    <text x="120" y="120" fill="#4cc38a" font-size="42" font-weight="700" text-anchor="middle" font-family="'Space Grotesk',system-ui">2.10</text>
+    <text x="120" y="158" fill="#4cc38a" font-size="12" font-weight="600" letter-spacing="1.5" text-anchor="middle">HEALTHY</text>
+  </g>
+
+  <!-- Gauge 2: at risk -->
+  <g transform="translate(250,64)">
+    <path d="M 12 132 A 108 108 0 0 1 228 132" fill="none" stroke="#2a2f3d" stroke-width="14" stroke-linecap="round"/>
+    <path d="M 12 132 A 108 108 0 0 1 120 24" fill="none" stroke="#e0a83d" stroke-width="14" stroke-linecap="round"/>
+    <line x1="66" y1="49" x2="72" y2="61" stroke="#f4f6fb" stroke-width="2" opacity="0.5"/>
+    <line x1="120" y1="132" x2="132" y2="26" stroke="#e0a83d" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="120" cy="132" r="7" fill="#e0a83d"/>
+    <text x="120" y="120" fill="#e0a83d" font-size="42" font-weight="700" text-anchor="middle" font-family="'Space Grotesk',system-ui">1.18</text>
+    <text x="120" y="158" fill="#e0a83d" font-size="12" font-weight="600" letter-spacing="1.5" text-anchor="middle">AT RISK</text>
+  </g>
+
+  <!-- Gauge 3: liquidatable -->
+  <g transform="translate(460,64)">
+    <path d="M 12 132 A 108 108 0 0 1 228 132" fill="none" stroke="#2a2f3d" stroke-width="14" stroke-linecap="round"/>
+    <path d="M 12 132 A 108 108 0 0 1 47 46" fill="none" stroke="#e5484d" stroke-width="14" stroke-linecap="round"/>
+    <line x1="66" y1="49" x2="72" y2="61" stroke="#f4f6fb" stroke-width="2" opacity="0.5"/>
+    <line x1="120" y1="132" x2="40" y2="62" stroke="#e5484d" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="120" cy="132" r="7" fill="#e5484d"/>
+    <text x="120" y="120" fill="#e5484d" font-size="42" font-weight="700" text-anchor="middle" font-family="'Space Grotesk',system-ui">0.85</text>
+    <text x="120" y="158" fill="#e5484d" font-size="12" font-weight="600" letter-spacing="1.5" text-anchor="middle">LIQUIDATABLE</text>
+  </g>
+</svg>
