@@ -20,26 +20,44 @@ import { ethers } from "hardhat";
 import * as fs from "fs";
 import * as path from "path";
 
-
 // ─── Configuration ──────────────────────────────────────────────────
+//
+// Every value can be overridden from the environment so operators tune the
+// deployment without editing code. Defaults are demo-friendly.
+
+const TOKEN_DECIMALS = 8; // cirBTC and USDC both 8 decimals — preserves exact percentage math.
+
+// Demo cirBTC: cirBTC has no public faucet, so a reviewer can't test against the
+// real token. Set NEXT_PUBLIC_USE_MOCK_CIRBTC=true to deploy a mintable mock
+// (8 decimals) with an in-app mint button; leave it unset for the production
+// path against Circle's real cirBTC.
+const USE_MOCK_CIRBTC = (process.env.NEXT_PUBLIC_USE_MOCK_CIRBTC ?? "false").toLowerCase() === "true";
 
 const CONFIG = {
-  // cirBTC collateral (already deployed on Arc Testnet)
-  cirBtcAddress: "0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF",
+  // Real cirBTC collateral on Arc Testnet (used when USE_MOCK_CIRBTC is false).
+  cirBtcAddress: process.env.CIRBTC_ADDRESS ?? "0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF",
 
-  // Mock USDC parameters (loan token — 8 decimals to match cirBTC)
+  // Mock token parameters (USDC loan token, and optional demo cirBTC).
   usdcName: "USD Coin",
   usdcSymbol: "USDC",
-  usdcDecimals: 8,
+  cirBtcName: "Circle BTC (Demo)",
+  cirBtcSymbol: "cirBTC",
 
-  // Collateral factor: users can borrow up to 50% of deposited cirBTC value
-  collateralFactor: 50,
+  // Oracle: initial cirBTC price in USD, scaled by 10**priceDecimals (Chainlink-style).
+  priceDecimals: 8,
+  cirBtcPriceUsd: process.env.CIRBTC_PRICE_USD ?? "100000", // $100,000 per cirBTC
 
-  // Initial USDC to fund the lending pool (8 decimals)
-  poolFunding: ethers.parseUnits("50000", 8),   // 50,000 USDC
+  // Risk parameters (basis points, 10000 = 100%).
+  collateralFactorBps: Number(process.env.COLLATERAL_FACTOR_BPS ?? 5000), // borrow up to 50%
+  maxCollateralFactorBps: Number(process.env.MAX_COLLATERAL_FACTOR_BPS ?? 6500), // credit ceiling 65%
+  liquidationThresholdBps: Number(process.env.LIQ_THRESHOLD_BPS ?? 8000), // liquidatable above 80%
+  liquidationBonusBps: Number(process.env.LIQ_BONUS_BPS ?? 800), // 8% liquidator bonus
+  closeFactorBps: Number(process.env.CLOSE_FACTOR_BPS ?? 5000), // repay up to 50% per liquidation
 
-  // USDC minted to deployer for testing (8 decimals)
-  deployerUsdc: ethers.parseUnits("100000", 8), // 100,000 USDC
+  // Pool seeding (8 decimals).
+  poolFunding: ethers.parseUnits(process.env.POOL_FUNDING ?? "500000", TOKEN_DECIMALS),
+  deployerUsdc: ethers.parseUnits(process.env.DEPLOYER_USDC ?? "1000000", TOKEN_DECIMALS),
+  deployerCirBtc: ethers.parseUnits(process.env.DEPLOYER_CIRBTC ?? "10", TOKEN_DECIMALS), // only for mock cirBTC
 };
 
 // ─── Helpers ────────────────────────────────────────────────────────
@@ -92,6 +110,13 @@ async function clearStuckNonces(deployer: Awaited<ReturnType<typeof ethers.getSi
   console.log();
 }
 
+async function deployMockToken(name: string, symbol: string): Promise<{ address: string; contract: any }> {
+  const factory = await ethers.getContractFactory("TestnetERC20");
+  const token = await factory.deploy(name, symbol, TOKEN_DECIMALS);
+  await token.waitForDeployment();
+  return { address: await token.getAddress(), contract: token };
+}
+
 // ─── Main ───────────────────────────────────────────────────────────
 
 async function main() {
@@ -104,9 +129,11 @@ async function main() {
   const [deployer] = signers;
   const balance = await ethers.provider.getBalance(deployer.address);
 
-  console.log("=== LendingBorrowing Deployment ===\n");
+  console.log("=== LendingBorrowingV2 Deployment ===\n");
   console.log("Deployer:", deployer.address);
-  console.log("Balance:", ethers.formatUnits(balance, 18), "(native gas)\n");
+  console.log("Balance:", ethers.formatUnits(balance, 18), "(native gas)");
+  console.log("Demo cirBTC:", USE_MOCK_CIRBTC ? "ON (mintable mock)" : "OFF (real cirBTC)");
+  console.log();
 
   if (balance === 0n) {
     throw new Error("Deployer has no balance. Fund your wallet from https://faucet.circle.com/");
@@ -115,97 +142,84 @@ async function main() {
   await clearStuckNonces(deployer);
 
   const envPath = path.resolve(__dirname, "../.env.local");
-  const cirBtcAddr = CONFIG.cirBtcAddress;
 
-  if (!ethers.isAddress(cirBtcAddr)) {
-    throw new Error(`cirBTC address is not valid: "${cirBtcAddr}"`);
+  // ─── Phase 1: Loan token (mock USDC) ────────────────────────────
+  console.log("Phase 1: Deploying mock USDC loan token...");
+  const usdc = await deployMockToken(CONFIG.usdcName, CONFIG.usdcSymbol);
+  console.log(`  USDC: ${usdc.address}`);
+  await (await usdc.contract.allocateTo(deployer.address, CONFIG.deployerUsdc)).wait();
+  console.log(`  Minted ${ethers.formatUnits(CONFIG.deployerUsdc, TOKEN_DECIMALS)} USDC to deployer.\n`);
+
+  // ─── Phase 2: Collateral token (real cirBTC or demo mock) ───────
+  console.log("Phase 2: Resolving cirBTC collateral token...");
+  let cirBtcAddr: string;
+  if (USE_MOCK_CIRBTC) {
+    const cirBtc = await deployMockToken(CONFIG.cirBtcName, CONFIG.cirBtcSymbol);
+    cirBtcAddr = cirBtc.address;
+    console.log(`  Demo cirBTC (mintable): ${cirBtcAddr}`);
+    await (await cirBtc.contract.allocateTo(deployer.address, CONFIG.deployerCirBtc)).wait();
+    console.log(`  Minted ${ethers.formatUnits(CONFIG.deployerCirBtc, TOKEN_DECIMALS)} cirBTC to deployer.\n`);
+  } else {
+    cirBtcAddr = CONFIG.cirBtcAddress;
+    if (!ethers.isAddress(cirBtcAddr)) throw new Error(`cirBTC address is not valid: "${cirBtcAddr}"`);
+    console.log(`  Using real cirBTC: ${cirBtcAddr}\n`);
   }
 
-  console.log(`Using cirBTC as collateral: ${cirBtcAddr}\n`);
+  // ─── Phase 3: Price oracle ──────────────────────────────────────
+  console.log("Phase 3: Deploying MockPriceOracle...");
+  const initialPrice = ethers.parseUnits(CONFIG.cirBtcPriceUsd, CONFIG.priceDecimals);
+  const oracleFactory = await ethers.getContractFactory("MockPriceOracle");
+  const oracle = await oracleFactory.deploy(initialPrice, CONFIG.priceDecimals);
+  await oracle.waitForDeployment();
+  const oracleAddr = await oracle.getAddress();
+  console.log(`  MockPriceOracle: ${oracleAddr}`);
+  console.log(`  Initial cirBTC price: $${Number(CONFIG.cirBtcPriceUsd).toLocaleString()}\n`);
 
-  // ─── Phase 1: Deploy mock USDC (loan token) ─────────────────────
-
-  console.log("Phase 1: Deploying mock USDC loan token...\n");
-
-  console.log("  Deploying TestnetERC20 (USDC)...");
-  const usdcFactory = await ethers.getContractFactory("TestnetERC20");
-  const usdc = await usdcFactory.deploy(CONFIG.usdcName, CONFIG.usdcSymbol, CONFIG.usdcDecimals);
-  await usdc.waitForDeployment();
-  const usdcAddr = await usdc.getAddress();
-  console.log(`  TestnetERC20 (USDC): ${usdcAddr}`);
-
-  // Mint USDC to deployer for testing
-  await (
-    await usdc.getFunction("allocateTo")(deployer.address, CONFIG.deployerUsdc)
-  ).wait();
-  console.log(
-    `  Minted ${ethers.formatUnits(CONFIG.deployerUsdc, CONFIG.usdcDecimals)} USDC to deployer.`
-  );
-
-  // ─── Phase 2: Deploy LendingBorrowing contract ──────────────────
-
-  console.log("\nPhase 2: Deploying LendingBorrowing contract...\n");
-
-  const lendingFactory = await ethers.getContractFactory("LendingBorrowing");
+  // ─── Phase 4: LendingBorrowingV2 ────────────────────────────────
+  console.log("Phase 4: Deploying LendingBorrowingV2...");
+  const lendingFactory = await ethers.getContractFactory("LendingBorrowingV2");
   const lending = await lendingFactory.deploy(
     cirBtcAddr,
-    usdcAddr,
-    CONFIG.collateralFactor
+    usdc.address,
+    oracleAddr,
+    CONFIG.collateralFactorBps,
+    CONFIG.maxCollateralFactorBps,
+    CONFIG.liquidationThresholdBps,
+    CONFIG.liquidationBonusBps,
+    CONFIG.closeFactorBps
   );
   await lending.waitForDeployment();
   const lendingAddr = await lending.getAddress();
-  console.log(`  LendingBorrowing: ${lendingAddr}`);
+  console.log(`  LendingBorrowingV2: ${lendingAddr}\n`);
 
-  // ─── Phase 3: Fund the lending pool with USDC ───────────────────
+  // ─── Phase 5: Fund the pool ─────────────────────────────────────
+  console.log("Phase 5: Funding the USDC pool...");
+  await (await usdc.contract.approve(lendingAddr, CONFIG.poolFunding)).wait();
+  await (await lending.fundPool(CONFIG.poolFunding)).wait();
+  console.log(`  Pool funded with ${ethers.formatUnits(CONFIG.poolFunding, TOKEN_DECIMALS)} USDC.\n`);
 
-  console.log("\nPhase 3: Funding lending pool with USDC...\n");
-
-  const usdcAbi = [
-    "function approve(address spender, uint256 amount) returns (bool)",
-    "function balanceOf(address account) view returns (uint256)",
-    "function allocateTo(address ownerAddress, uint256 value)",
-  ];
-  const usdcContract = new ethers.Contract(usdcAddr, usdcAbi, deployer);
-
-  const usdcBalance = await usdcContract.balanceOf(deployer.address);
-  console.log(`  Deployer USDC balance: ${ethers.formatUnits(usdcBalance, CONFIG.usdcDecimals)}`);
-
-  if (usdcBalance < CONFIG.poolFunding) {
-    console.log("  Deployer has insufficient USDC — minting more...");
-    await (
-      await usdcContract.allocateTo(deployer.address, CONFIG.poolFunding)
-    ).wait();
-    console.log(`  Minted ${ethers.formatUnits(CONFIG.poolFunding, CONFIG.usdcDecimals)} USDC.`);
-  }
-
-  await (await usdcContract.approve(lendingAddr, CONFIG.poolFunding)).wait();
-  await (await lending.getFunction("fundPool")(CONFIG.poolFunding)).wait();
-  console.log(
-    `  Pool funded with ${ethers.formatUnits(CONFIG.poolFunding, CONFIG.usdcDecimals)} USDC.`
-  );
-
-  // ─── Phase 4: Write .env.local ──────────────────────────────────
-
+  // ─── Phase 6: Write .env.local ──────────────────────────────────
   writeEnvFile(envPath, {
     NEXT_PUBLIC_LENDING_ADDRESS: lendingAddr,
-    NEXT_PUBLIC_USDC_ADDRESS: usdcAddr,
+    NEXT_PUBLIC_USDC_ADDRESS: usdc.address,
     NEXT_PUBLIC_CIRBTC_ADDRESS: cirBtcAddr,
+    NEXT_PUBLIC_ORACLE_ADDRESS: oracleAddr,
+    NEXT_PUBLIC_USE_MOCK_CIRBTC: String(USE_MOCK_CIRBTC),
   });
 
   // ─── Summary ────────────────────────────────────────────────────
-
-  console.log("\n=== Deployment Summary ===\n");
-  console.log(`  cirBTC (collateral token):  ${cirBtcAddr}`);
-  console.log(`  USDC (loan token):          ${usdcAddr}`);
-  console.log(`  LendingBorrowing contract:  ${lendingAddr}`);
-  console.log(`  Collateral factor:          ${CONFIG.collateralFactor}%`);
-  console.log(
-    `  Pool liquidity:             ${ethers.formatUnits(CONFIG.poolFunding, CONFIG.usdcDecimals)} USDC`
-  );
+  console.log("=== Deployment Summary ===\n");
+  console.log(`  cirBTC (collateral):        ${cirBtcAddr}${USE_MOCK_CIRBTC ? "  [demo mock]" : ""}`);
+  console.log(`  USDC (loan token):          ${usdc.address}`);
+  console.log(`  MockPriceOracle:            ${oracleAddr}`);
+  console.log(`  LendingBorrowingV2:         ${lendingAddr}`);
+  console.log(`  Collateral factor:          ${CONFIG.collateralFactorBps / 100}%  (credit ceiling ${CONFIG.maxCollateralFactorBps / 100}%)`);
+  console.log(`  Liquidation threshold:      ${CONFIG.liquidationThresholdBps / 100}%  (bonus ${CONFIG.liquidationBonusBps / 100}%)`);
+  console.log(`  Pool liquidity:             ${ethers.formatUnits(CONFIG.poolFunding, TOKEN_DECIMALS)} USDC`);
   console.log(`\nUpdated ${envPath} with deployed addresses.`);
   console.log("\nNext steps:");
-  console.log("  1. Run 'npm run dev' to start the frontend.");
-  console.log("  2. Deposit cirBTC as collateral and borrow USDC.");
+  console.log("  1. (optional) Seed a near-liquidation demo:  npm run seed:demo");
+  console.log("  2. Start the frontend:                       npm run dev");
 }
 
 main().catch((error) => {

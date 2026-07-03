@@ -41,6 +41,10 @@ const config: HardhatUserConfig = {
     },
   },
   networks: {
+    // Local Hardhat node for end-to-end proving (npx hardhat node).
+    localhost: {
+      url: "http://127.0.0.1:8545",
+    },
     arcTestnet: {
       url: process.env.NEXT_PUBLIC_RPC_URL || "https://rpc.testnet.arc.network",
       accounts,
