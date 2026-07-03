@@ -9,6 +9,12 @@ Two browser profiles make the liquidation vivid: one **borrower**, one
 **liquidator**. A single wallet also works (you can liquidate your own
 position).
 
+> **Prefer to verify the substance without a UI?** `npm run verify:demo` walks
+> this exact path as on-chain transactions against an in-process chain and
+> asserts every outcome below (health factors, the 8% bonus + close-factor cap,
+> the credit-driven change in terms, the APR jump past the kink). No wallet,
+> node, or frontend required.
+
 ## 0. Setup (once)
 
 ```bash

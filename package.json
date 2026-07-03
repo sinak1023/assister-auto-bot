@@ -10,6 +10,7 @@
     "lint": "eslint",
     "compile": "hardhat compile",
     "test:contracts": "hardhat test",
+    "verify:demo": "hardhat run scripts/verify-demo.ts",
     "deploy:lending": "hardhat run scripts/deploy-lending.ts --network arcTestnet",
     "seed:demo": "hardhat run scripts/seed-demo.ts --network arcTestnet",
     "db:start": "supabase start",
