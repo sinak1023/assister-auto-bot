@@ -186,6 +186,13 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Atmospheric depth: faint azure (dollars) + gold (Bitcoin) glows on the
+       deep slate ground — the two-metal identity, felt not shouted. */
+    background-image:
+      radial-gradient(60rem 40rem at 15% -10%, color-mix(in oklch, var(--primary) 22%, transparent), transparent 70%),
+      radial-gradient(50rem 40rem at 100% 0%, color-mix(in oklch, var(--gold) 14%, transparent), transparent 65%);
+    background-attachment: fixed;
+    background-repeat: no-repeat;
   }
   html {
     @apply font-sans;
@@ -193,5 +200,23 @@
   /* Financial values use tabular figures so digits don't shift as they tick. */
   .font-mono {
     font-variant-numeric: tabular-nums;
+  }
+  ::selection {
+    background: color-mix(in oklch, var(--primary) 30%, transparent);
+  }
+  /* Quiet, on-theme scrollbars. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: color-mix(in oklch, var(--muted-foreground) 30%, transparent);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
   }
 }

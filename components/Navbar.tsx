@@ -23,11 +23,11 @@ import { ConnectWallet } from "./wallet/ConnectWallet";
 
 export function Navbar() {
   return (
-    <nav className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-      <div className="container mx-auto max-w-5xl flex flex-col gap-2 py-2 px-3 sm:px-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:h-14 sm:py-0">
-        <Link href="/" className="flex items-center gap-2 font-bold text-base sm:text-lg shrink-0">
-          <span className="text-xl">◈</span>
-          <span>Arc Vault</span>
+    <nav className="sticky top-0 z-50 border-b border-white/[0.06] bg-background/70 backdrop-blur-xl">
+      <div className="container mx-auto flex max-w-5xl flex-col gap-2 px-3 py-2 sm:h-14 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-4 sm:py-0">
+        <Link href="/" className="flex shrink-0 items-center gap-2.5">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/15 text-primary ring-1 ring-inset ring-primary/25">◈</span>
+          <span className="font-display text-base font-semibold tracking-tight sm:text-lg">Arc Vault</span>
         </Link>
         <ConnectWallet />
       </div>

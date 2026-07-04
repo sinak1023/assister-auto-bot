@@ -85,8 +85,15 @@ export function HealthFactorGauge({ hf, size = 220, className }: HealthFactorGau
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={`Health factor ${display}, ${label}`}>
         {/* Track */}
         <path d={arcPath(cx, cy, r, 0, 180)} fill="none" stroke="var(--secondary)" strokeWidth={stroke} strokeLinecap="round" />
-        {/* Colored fill up to the current HF */}
-        <path d={arcPath(cx, cy, r, 0, ang)} fill="none" stroke={color} strokeWidth={stroke} strokeLinecap="round" />
+        {/* Colored fill up to the current HF (with a soft glow — the signature moment) */}
+        <path
+          d={arcPath(cx, cy, r, 0, ang)}
+          fill="none"
+          stroke={color}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          style={{ filter: `drop-shadow(0 0 5px ${color})` }}
+        />
         {/* HF = 1.0 tick */}
         <line x1={tx} y1={ty} x2={tx2} y2={ty2} stroke="var(--foreground)" strokeWidth={2} opacity={0.5} />
         <text x={tx} y={ty - 3} fill="var(--muted-foreground)" fontSize={W * 0.05} textAnchor="middle" fontFamily="var(--font-mono)">

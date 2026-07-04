@@ -34,7 +34,16 @@ import { RateCurve } from "@/components/lending/RateCurve";
 import { CreditTab } from "@/components/lending/CreditTab";
 import { LiquidationsView } from "@/components/lending/LiquidationsView";
 import { LENDING_ADDRESS } from "@/lib/contracts/addresses";
-import { formatPrice } from "@/lib/format";
+import { formatPrice, compactUsd, formatRatePct } from "@/lib/format";
+
+function Ticker({ label, value, accent }: { label: string; value: string; accent?: string }) {
+  return (
+    <div className="bg-card px-4 py-3">
+      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className="mt-0.5 font-mono text-lg font-semibold" style={accent ? { color: accent } : undefined}>{value}</p>
+    </div>
+  );
+}
 
 const ZERO = "0x0000000000000000000000000000000000000000";
 
@@ -60,19 +69,27 @@ export default function LendingPage() {
 
   return (
     <div className="container mx-auto max-w-5xl px-3 py-5 sm:px-4 sm:py-8">
-      {/* Header */}
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="font-display text-2xl font-bold sm:text-3xl">Arc Vault</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Borrow USDC against cirBTC on Arc — with live risk, dynamic rates, and on-chain credit.
-          </p>
+      {/* Hero */}
+      <header className="mb-6">
+        <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+          Institutional lending · Arc Testnet
+        </p>
+        <h1 className="mt-1 font-display text-3xl font-bold tracking-tight sm:text-4xl">Arc Vault</h1>
+        <p className="mt-1.5 max-w-xl text-sm text-muted-foreground">
+          Borrow USDC against cirBTC — with live risk, dynamic rates, on-chain credit, and a real supply side.
+        </p>
+
+        {/* Live market ticker (hairline grid) */}
+        <div className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-white/[0.06] ring-1 ring-inset ring-white/[0.06] sm:grid-cols-4">
+          <Ticker label="cirBTC / USD" value={formatPrice(s.price, s.priceDecimals)} accent="var(--gold)" />
+          <Ticker label="Total supplied" value={compactUsd(s.totalSupplied)} />
+          <Ticker label="Borrow APR" value={formatRatePct(s.borrowAPR)} accent="var(--primary)" />
+          <Ticker
+            label="Utilization"
+            value={s.utilization !== undefined ? `${((Number(s.utilization) / 1e18) * 100).toFixed(1)}%` : "—"}
+          />
         </div>
-        <div className="rounded-lg border border-border bg-card px-3 py-2 text-right">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">cirBTC / USD</p>
-          <p className="font-mono text-lg font-semibold text-gold">{formatPrice(s.price, s.priceDecimals)}</p>
-        </div>
-      </div>
+      </header>
 
       {connected && isWrongChain && (
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-caution/30 bg-caution/10 px-4 py-3 text-sm text-caution">
