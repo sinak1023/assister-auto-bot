@@ -54,10 +54,17 @@ const CONFIG = {
   liquidationBonusBps: Number(process.env.LIQ_BONUS_BPS ?? 800), // 8% liquidator bonus
   closeFactorBps: Number(process.env.CLOSE_FACTOR_BPS ?? 5000), // repay up to 50% per liquidation
 
-  // Pool seeding (8 decimals).
+  // Pool seeding (8 decimals). Seeded via the supply side so the deployer is
+  // the initial liquidity provider (share-backed) and the pool is borrowable
+  // before any external supplier arrives.
   poolFunding: ethers.parseUnits(process.env.POOL_FUNDING ?? "500000", TOKEN_DECIMALS),
   deployerUsdc: ethers.parseUnits(process.env.DEPLOYER_USDC ?? "1000000", TOKEN_DECIMALS),
   deployerCirBtc: ethers.parseUnits(process.env.DEPLOYER_CIRBTC ?? "10", TOKEN_DECIMALS), // only for mock cirBTC
+
+  // Faucet: fixed per-claim amounts + cooldown.
+  faucetCooldown: Number(process.env.FAUCET_COOLDOWN_SECONDS ?? 24 * 60 * 60), // 24h
+  faucetUsdcDrip: ethers.parseUnits(process.env.FAUCET_USDC_DRIP ?? "150", TOKEN_DECIMALS),
+  faucetCirBtcDrip: ethers.parseUnits(process.env.FAUCET_CIRBTC_DRIP ?? "0.01", TOKEN_DECIMALS),
 };
 
 // ─── Helpers ────────────────────────────────────────────────────────
@@ -153,9 +160,11 @@ async function main() {
   // ─── Phase 2: Collateral token (real cirBTC or demo mock) ───────
   console.log("Phase 2: Resolving cirBTC collateral token...");
   let cirBtcAddr: string;
+  let cirBtcMock: Awaited<ReturnType<typeof deployMockToken>>["contract"] | null = null;
   if (USE_MOCK_CIRBTC) {
     const cirBtc = await deployMockToken(CONFIG.cirBtcName, CONFIG.cirBtcSymbol);
     cirBtcAddr = cirBtc.address;
+    cirBtcMock = cirBtc.contract;
     console.log(`  Demo cirBTC (mintable): ${cirBtcAddr}`);
     await (await cirBtc.contract.allocateTo(deployer.address, CONFIG.deployerCirBtc)).wait();
     console.log(`  Minted ${ethers.formatUnits(CONFIG.deployerCirBtc, TOKEN_DECIMALS)} cirBTC to deployer.\n`);
@@ -192,18 +201,40 @@ async function main() {
   const lendingAddr = await lending.getAddress();
   console.log(`  LendingBorrowingV2: ${lendingAddr}\n`);
 
-  // ─── Phase 5: Fund the pool ─────────────────────────────────────
-  console.log("Phase 5: Funding the USDC pool...");
+  // ─── Phase 5: Seed liquidity via the supply side ────────────────
+  console.log("Phase 5: Seeding liquidity (deployer supplies)...");
   await (await usdc.contract.approve(lendingAddr, CONFIG.poolFunding)).wait();
-  await (await lending.fundPool(CONFIG.poolFunding)).wait();
-  console.log(`  Pool funded with ${ethers.formatUnits(CONFIG.poolFunding, TOKEN_DECIMALS)} USDC.\n`);
+  await (await lending.supply(CONFIG.poolFunding)).wait();
+  console.log(`  Supplied ${ethers.formatUnits(CONFIG.poolFunding, TOKEN_DECIMALS)} USDC as initial liquidity.\n`);
 
-  // ─── Phase 6: Write .env.local ──────────────────────────────────
+  // ─── Phase 6: Deploy the rate-limited faucet ────────────────────
+  console.log("Phase 6: Deploying TokenFaucet...");
+  const faucetFactory = await ethers.getContractFactory("TokenFaucet");
+  const faucet = await faucetFactory.deploy(CONFIG.faucetCooldown);
+  await faucet.waitForDeployment();
+  const faucetAddr = await faucet.getAddress();
+  console.log(`  TokenFaucet: ${faucetAddr}`);
+
+  // Authorize the faucet to mint, and set fixed drip amounts.
+  await (await usdc.contract.setMinter(faucetAddr, true)).wait();
+  await (await faucet.setDrip(usdc.address, CONFIG.faucetUsdcDrip)).wait();
+  console.log(`  USDC drip: ${ethers.formatUnits(CONFIG.faucetUsdcDrip, TOKEN_DECIMALS)} per ${CONFIG.faucetCooldown / 3600}h`);
+  if (cirBtcMock) {
+    await (await cirBtcMock.setMinter(faucetAddr, true)).wait();
+    await (await faucet.setDrip(cirBtcAddr, CONFIG.faucetCirBtcDrip)).wait();
+    console.log(`  cirBTC drip: ${ethers.formatUnits(CONFIG.faucetCirBtcDrip, TOKEN_DECIMALS)} per ${CONFIG.faucetCooldown / 3600}h`);
+  } else {
+    console.log("  (real cirBTC — no faucet drip; use Circle's faucet)");
+  }
+  console.log();
+
+  // ─── Phase 7: Write .env.local ──────────────────────────────────
   writeEnvFile(envPath, {
     NEXT_PUBLIC_LENDING_ADDRESS: lendingAddr,
     NEXT_PUBLIC_USDC_ADDRESS: usdc.address,
     NEXT_PUBLIC_CIRBTC_ADDRESS: cirBtcAddr,
     NEXT_PUBLIC_ORACLE_ADDRESS: oracleAddr,
+    NEXT_PUBLIC_FAUCET_ADDRESS: faucetAddr,
     NEXT_PUBLIC_USE_MOCK_CIRBTC: String(USE_MOCK_CIRBTC),
   });
 
@@ -212,6 +243,7 @@ async function main() {
   console.log(`  cirBTC (collateral):        ${cirBtcAddr}${USE_MOCK_CIRBTC ? "  [demo mock]" : ""}`);
   console.log(`  USDC (loan token):          ${usdc.address}`);
   console.log(`  MockPriceOracle:            ${oracleAddr}`);
+  console.log(`  TokenFaucet:                ${faucetAddr}`);
   console.log(`  LendingBorrowingV2:         ${lendingAddr}`);
   console.log(`  Collateral factor:          ${CONFIG.collateralFactorBps / 100}%  (credit ceiling ${CONFIG.maxCollateralFactorBps / 100}%)`);
   console.log(`  Liquidation threshold:      ${CONFIG.liquidationThresholdBps / 100}%  (bonus ${CONFIG.liquidationBonusBps / 100}%)`);

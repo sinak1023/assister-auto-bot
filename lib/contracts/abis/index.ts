@@ -19,3 +19,4 @@
 export { ERC20_ABI, TESTNET_ERC20_ABI } from "./erc20";
 export { LENDING_ABI } from "./lending";
 export { ORACLE_ABI } from "./oracle";
+export { FAUCET_ABI } from "./faucet";

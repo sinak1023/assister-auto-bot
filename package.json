@@ -13,6 +13,7 @@
     "verify:demo": "hardhat run scripts/verify-demo.ts",
     "deploy:lending": "hardhat run scripts/deploy-lending.ts --network arcTestnet",
     "seed:demo": "hardhat run scripts/seed-demo.ts --network arcTestnet",
+    "price:updater": "hardhat run scripts/price-updater.ts --network arcTestnet",
     "db:start": "supabase start",
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",

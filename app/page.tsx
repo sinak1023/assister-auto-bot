@@ -29,6 +29,7 @@ import { Faucet } from "@/components/lending/Faucet";
 import { PositionCard } from "@/components/lending/PositionCard";
 import { OpenPositionCard } from "@/components/lending/OpenPositionCard";
 import { TreasuryDashboard } from "@/components/lending/TreasuryDashboard";
+import { SupplyPanel } from "@/components/lending/SupplyPanel";
 import { RateCurve } from "@/components/lending/RateCurve";
 import { CreditTab } from "@/components/lending/CreditTab";
 import { LiquidationsView } from "@/components/lending/LiquidationsView";
@@ -100,6 +101,7 @@ export default function LendingPage() {
       <Tabs defaultValue="portfolio">
         <TabsList className="mb-5">
           <TabsTrigger value="portfolio">Portfolio</TabsTrigger>
+          <TabsTrigger value="earn">Earn</TabsTrigger>
           <TabsTrigger value="markets">Markets</TabsTrigger>
           <TabsTrigger value="liquidations">Liquidations</TabsTrigger>
           <TabsTrigger value="credit">Credit</TabsTrigger>
@@ -147,6 +149,19 @@ export default function LendingPage() {
               {address && <TransactionHistory wallet={address} />}
             </>
           )}
+        </TabsContent>
+
+        {/* Earn (supply side) */}
+        <TabsContent value="earn">
+          <SupplyPanel
+            usdcBalance={s.usdcBalance}
+            usdcAllowance={s.usdcAllowance}
+            supplyBalance={s.supplyBalance}
+            totalSupplied={s.totalSupplied}
+            supplyAPY={s.supplyAPY}
+            connected={connected}
+            onSuccess={s.refetch}
+          />
         </TabsContent>
 
         {/* Markets */}

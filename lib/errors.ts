@@ -50,6 +50,12 @@ const CUSTOM_ERRORS: Record<string, { title: string; detail: string }> = {
     title: "Position is healthy",
     detail: "Its health factor is at or above 1.0, so it can't be liquidated.",
   },
+  CooldownActive: {
+    title: "Faucet on cooldown",
+    detail: "You've already claimed this token recently. Each wallet can claim once every 24 hours.",
+  },
+  TokenNotSupported: { title: "Not available", detail: "This token isn't offered by the faucet." },
+  InsufficientShares: { title: "Nothing to withdraw", detail: "You don't have that much supplied." },
   NoSuchPosition: { title: "Position not found", detail: "That position id doesn't exist for this account." },
   PositionInactive: { title: "Position closed", detail: "This position has been closed." },
   ZeroAmount: { title: "Enter an amount", detail: "The amount must be greater than zero." },

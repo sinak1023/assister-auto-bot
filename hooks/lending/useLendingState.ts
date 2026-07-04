@@ -24,10 +24,12 @@ import { keepPreviousData } from "@tanstack/react-query";
 import { type Abi, type Address } from "viem";
 import { LENDING_ABI } from "@/lib/contracts/abis/lending";
 import { ORACLE_ABI } from "@/lib/contracts/abis/oracle";
+import { FAUCET_ABI } from "@/lib/contracts/abis/faucet";
 import { ERC20_ABI } from "@/lib/contracts/abis/erc20";
 import {
   LENDING_ADDRESS,
   ORACLE_ADDRESS,
+  FAUCET_ADDRESS,
   USDC_ADDRESS,
   CIRBTC_ADDRESS,
 } from "@/lib/contracts/addresses";
@@ -62,7 +64,9 @@ export function useLendingState(userAddress: Address | undefined) {
   // instantiation is excessively deep". Results are cast explicitly below.
   const lending = { address: LENDING_ADDRESS, abi: LENDING_ABI as Abi } as const;
   const oracle = { address: ORACLE_ADDRESS, abi: ORACLE_ABI as Abi } as const;
+  const faucet = { address: FAUCET_ADDRESS, abi: FAUCET_ABI as Abi } as const;
   const deployed = LENDING_ADDRESS !== ZERO;
+  const faucetDeployed = FAUCET_ADDRESS !== ZERO;
 
   // ── Market-wide + (optional) per-user aggregate reads (all on the lending contract) ──
   const marketRead = useReadContracts({
@@ -145,6 +149,29 @@ export function useLendingState(userAddress: Address | undefined) {
     query: { enabled: deployed && !!userAddress, refetchInterval: REFETCH_INTERVAL, placeholderData: keepPreviousData },
   });
 
+  // ── Supply side (separate call to keep the market read's indices stable) ──
+  const supplyRead = useReadContracts({
+    contracts: [
+      { ...lending, functionName: "totalSupplied" },
+      { ...lending, functionName: "totalReserves" },
+      { ...lending, functionName: "supplyAPY" },
+      ...(userAddress ? [{ ...lending, functionName: "supplyBalanceOf", args: [userAddress] }] : []),
+    ],
+    query: { enabled: deployed, refetchInterval: REFETCH_INTERVAL, placeholderData: keepPreviousData },
+  });
+
+  // ── Faucet cooldowns (separate ABI) ──
+  const faucetRead = useReadContracts({
+    contracts:
+      userAddress && faucetDeployed
+        ? [
+            { ...faucet, functionName: "claimableIn", args: [USDC_ADDRESS, userAddress] },
+            { ...faucet, functionName: "claimableIn", args: [CIRBTC_ADDRESS, userAddress] },
+          ]
+        : [],
+    query: { enabled: faucetDeployed && !!userAddress, refetchInterval: REFETCH_INTERVAL, placeholderData: keepPreviousData },
+  });
+
   const positions: PositionDetails[] = useMemo(() => {
     if (!positionRead.data) return [];
     return positionRead.data
@@ -178,8 +205,10 @@ export function useLendingState(userAddress: Address | undefined) {
     oracleRead.refetch();
     positionRead.refetch();
     tokenRead.refetch();
+    supplyRead.refetch();
+    faucetRead.refetch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [marketRead.refetch, oracleRead.refetch, positionRead.refetch, tokenRead.refetch]);
+  }, [marketRead.refetch, oracleRead.refetch, positionRead.refetch, tokenRead.refetch, supplyRead.refetch, faucetRead.refetch]);
 
   return {
     deployed,
@@ -230,5 +259,15 @@ export function useLendingState(userAddress: Address | undefined) {
     usdcBalance: tokenRead.data?.[1]?.result as bigint | undefined,
     cirBtcAllowance: tokenRead.data?.[2]?.result as bigint | undefined,
     usdcAllowance: tokenRead.data?.[3]?.result as bigint | undefined,
+
+    // Supply side
+    totalSupplied: supplyRead.data?.[0]?.result as bigint | undefined,
+    totalReserves: supplyRead.data?.[1]?.result as bigint | undefined,
+    supplyAPYValue: supplyRead.data?.[2]?.result as bigint | undefined,
+    supplyBalance: userAddress ? (supplyRead.data?.[3]?.result as bigint | undefined) : undefined,
+
+    // Faucet cooldowns (seconds until claimable; 0 = now)
+    usdcClaimableIn: userAddress ? (faucetRead.data?.[0]?.result as bigint | undefined) : undefined,
+    cirBtcClaimableIn: userAddress ? (faucetRead.data?.[1]?.result as bigint | undefined) : undefined,
   };
 }

@@ -21,11 +21,13 @@
 import { useEffect, useRef } from "react";
 import { parseUnits, type Address } from "viem";
 import { useContractWrite } from "@/hooks/useContractWrite";
-import { ERC20_ABI, TESTNET_ERC20_ABI, LENDING_ABI } from "@/lib/contracts";
+import { ERC20_ABI, LENDING_ABI } from "@/lib/contracts";
 import { ORACLE_ABI } from "@/lib/contracts/abis/oracle";
+import { FAUCET_ABI } from "@/lib/contracts/abis/faucet";
 import {
   LENDING_ADDRESS,
   ORACLE_ADDRESS,
+  FAUCET_ADDRESS,
   USDC_ADDRESS,
   CIRBTC_ADDRESS,
   COLLATERAL_DECIMALS,
@@ -68,19 +70,18 @@ function useLogOnConfirm(
   }, [isSuccess, hash, address, mutate, pending]);
 }
 
-// ─── Token faucets ────────────────────────────────────────────────────────────
+// ─── Token faucets (fixed amount + 24h cooldown, via TokenFaucet) ───────────────
 
+// The faucet mints a fixed drip amount per claim (set at deploy) and enforces a
+// per-wallet cooldown, so callers don't pass an amount.
 export function useMintUsdc() {
   const w = useContractWrite();
-  const { address } = useWallet();
   const pending = useRef<PendingLog | null>(null);
   useLogOnConfirm(w.isSuccess, w.hash, pending);
 
-  const mint = (amount: string) => {
-    if (!address) return;
-    const raw = parseUnits(amount, LOAN_DECIMALS);
-    pending.current = { action: "mint_usdc", token: "USDC", amountRaw: raw, amountFormatted: amount };
-    w.write({ address: USDC_ADDRESS, abi: TESTNET_ERC20_ABI, functionName: "allocateTo", args: [address, raw] });
+  const mint = () => {
+    pending.current = { action: "mint_usdc", token: "USDC", amountRaw: 0n, amountFormatted: "faucet" };
+    w.write({ address: FAUCET_ADDRESS, abi: FAUCET_ABI, functionName: "claim", args: [USDC_ADDRESS] });
   };
   return { mint, ...w };
 }
@@ -88,15 +89,12 @@ export function useMintUsdc() {
 // Only usable when cirBTC is the mintable demo token (NEXT_PUBLIC_USE_MOCK_CIRBTC).
 export function useMintCirBtc() {
   const w = useContractWrite();
-  const { address } = useWallet();
   const pending = useRef<PendingLog | null>(null);
   useLogOnConfirm(w.isSuccess, w.hash, pending);
 
-  const mint = (amount: string) => {
-    if (!address) return;
-    const raw = parseUnits(amount, COLLATERAL_DECIMALS);
-    pending.current = { action: "mint_cirbtc", token: "cirBTC", amountRaw: raw, amountFormatted: amount };
-    w.write({ address: CIRBTC_ADDRESS, abi: TESTNET_ERC20_ABI, functionName: "allocateTo", args: [address, raw] });
+  const mint = () => {
+    pending.current = { action: "mint_cirbtc", token: "cirBTC", amountRaw: 0n, amountFormatted: "faucet" };
+    w.write({ address: FAUCET_ADDRESS, abi: FAUCET_ABI, functionName: "claim", args: [CIRBTC_ADDRESS] });
   };
   return { mint, ...w };
 }
@@ -182,6 +180,35 @@ export function useRepayLoan() {
     w.write({ address: LENDING_ADDRESS, abi: LENDING_ABI, functionName: "repayLoan", args: [BigInt(positionId), raw] });
   };
   return { repay, ...w };
+}
+
+// ─── Supply side (earn yield) ───────────────────────────────────────────────
+
+export function useSupply() {
+  const w = useContractWrite();
+  const pending = useRef<PendingLog | null>(null);
+  useLogOnConfirm(w.isSuccess, w.hash, pending);
+
+  const supply = (amount: string) => {
+    const raw = parseUnits(amount, LOAN_DECIMALS);
+    pending.current = { action: "supply", token: "USDC", amountRaw: raw, amountFormatted: amount };
+    w.write({ address: LENDING_ADDRESS, abi: LENDING_ABI, functionName: "supply", args: [raw] });
+  };
+  return { supply, ...w };
+}
+
+export function useWithdrawSupply() {
+  const w = useContractWrite();
+  const pending = useRef<PendingLog | null>(null);
+  useLogOnConfirm(w.isSuccess, w.hash, pending);
+
+  // Pass a generous amount (e.g. maxUint) to fully exit — the contract caps it.
+  const withdrawSupply = (amount: string, raw?: bigint) => {
+    const value = raw ?? parseUnits(amount, LOAN_DECIMALS);
+    pending.current = { action: "withdraw_supply", token: "USDC", amountRaw: value, amountFormatted: amount };
+    w.write({ address: LENDING_ADDRESS, abi: LENDING_ABI, functionName: "withdrawSupply", args: [value] });
+  };
+  return { withdrawSupply, ...w };
 }
 
 // ─── Liquidation ──────────────────────────────────────────────────────────────

@@ -66,6 +66,8 @@ const ACTION_STYLES: Record<TxAction, { label: string; className: string }> = {
   mint_cirbtc: { label: "Mint cirBTC", className: "bg-slate-500/15 text-slate-300 border-slate-500/30" },
   open: { label: "Open position", className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
   liquidate: { label: "Liquidate", className: "bg-red-500/15 text-red-400 border-red-500/30" },
+  supply: { label: "Supply", className: "bg-sky-500/15 text-sky-400 border-sky-500/30" },
+  withdraw_supply: { label: "Withdraw supply", className: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
 };
 
 export function TransactionHistory({ wallet }: TransactionHistoryProps) {

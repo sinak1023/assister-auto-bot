@@ -132,7 +132,7 @@ export function ConnectWallet() {
           </a>
         ) : (
           <button
-            onClick={() => mintUsdc.mint("1000")}
+            onClick={() => mintUsdc.mint()}
             disabled={mintUsdc.isPending || mintUsdc.isConfirming}
             className={`rounded px-2 py-0.5 ml-1 text-xs font-medium transition-colors disabled:opacity-50 ${mintUsdc.error
               ? "bg-red-600/15 text-red-500 hover:bg-red-600/25"

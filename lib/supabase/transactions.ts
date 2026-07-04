@@ -28,7 +28,9 @@ export type TxAction =
   | "mint_usdc"
   | "mint_cirbtc"
   | "open"
-  | "liquidate";
+  | "liquidate"
+  | "supply"
+  | "withdraw_supply";
 export type TxToken = "cirBTC" | "USDC";
 export type TxStatus = "confirmed" | "failed";
 

@@ -57,7 +57,7 @@ export function Faucet({
           <Badge variant="secondary">testnet faucet</Badge>
         </CardTitle>
         <p className="text-xs text-muted-foreground">
-          Mint tokens to try the app. {USE_MOCK_CIRBTC ? "Demo cirBTC is mintable here." : "Real cirBTC comes from Circle's faucet."}
+          Fixed amounts, once every 24h per wallet. {USE_MOCK_CIRBTC ? "Demo cirBTC is claimable here." : "Real cirBTC comes from Circle's faucet."}
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -66,8 +66,8 @@ export function Faucet({
             <span className="text-muted-foreground">USDC balance</span>
             <span className="font-mono text-foreground">{formatUsdc(usdcBalance)}</span>
           </div>
-          <Button className="w-full" variant="outline" onClick={() => mintUsdc.mint("10000")} disabled={usdcBusy}>
-            {usdcBusy ? "Minting…" : "Mint 10,000 USDC"}
+          <Button className="w-full" variant="outline" onClick={() => mintUsdc.mint()} disabled={usdcBusy}>
+            {usdcBusy ? "Claiming…" : "Claim 150 USDC"}
           </Button>
           <TxStatus {...mintUsdc} />
         </div>
@@ -78,8 +78,8 @@ export function Faucet({
               <span className="text-muted-foreground">cirBTC balance</span>
               <span className="font-mono text-foreground">{formatCirBtc(cirBtcBalance)}</span>
             </div>
-            <Button className="w-full" variant="outline" onClick={() => mintCirBtc.mint("1")} disabled={cirBusy}>
-              {cirBusy ? "Minting…" : "Mint 1 demo cirBTC"}
+            <Button className="w-full" variant="outline" onClick={() => mintCirBtc.mint()} disabled={cirBusy}>
+              {cirBusy ? "Claiming…" : "Claim 0.01 demo cirBTC"}
             </Button>
             <TxStatus {...mintCirBtc} />
           </div>

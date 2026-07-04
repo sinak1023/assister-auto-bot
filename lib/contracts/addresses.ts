@@ -34,6 +34,10 @@ export const ORACLE_ADDRESS: Address =
   (process.env.NEXT_PUBLIC_ORACLE_ADDRESS as Address) ??
   "0x0000000000000000000000000000000000000000";
 
+export const FAUCET_ADDRESS: Address =
+  (process.env.NEXT_PUBLIC_FAUCET_ADDRESS as Address) ??
+  "0x0000000000000000000000000000000000000000";
+
 // When true, cirBTC is a mintable demo token (deployed by deploy-lending.ts) so
 // reviewers can test without owning real cirBTC. Enables the in-app mint button.
 export const USE_MOCK_CIRBTC: boolean =
