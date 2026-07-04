@@ -32,7 +32,7 @@ interface ContractWriteParams {
 }
 
 export function useContractWrite() {
-  const { walletType, bundlerClient, ensureCircleSigner } = useWallet();
+  const { walletType, address, bundlerClient, ensureCircleSigner } = useWallet();
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
 
@@ -56,6 +56,14 @@ export function useContractWrite() {
       setIsSuccess(false);
       setError(null);
       setHash(undefined);
+
+      // No wallet connected — surface a clear prompt instead of a raw
+      // "Connector not connected" from the underlying library.
+      if (!address && walletType !== "circle") {
+        setIsPending(false);
+        setError(new Error("Connect your wallet to continue."));
+        return;
+      }
 
       if (walletType === "circle") {
         // The session may be rehydrated from cache (address known, signer not

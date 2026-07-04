@@ -77,6 +77,11 @@ export function parseTxError(error: Error): { title: string; detail?: string } {
     };
   }
 
+  // No wallet connected (raw wagmi/viem message).
+  if (msg.includes("Connector not connected") || msg.includes("connector not connected")) {
+    return { title: "Wallet not connected", detail: "Connect your wallet to continue." };
+  }
+
   // User rejected the transaction in their wallet
   if (
     msg.includes("User rejected") ||

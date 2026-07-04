@@ -96,6 +96,13 @@ contract LendingBorrowingV2 is Ownable, ReentrancyGuard {
     uint256 public lastAccrualTime;
     uint256 public totalScaledDebt; // sum of all positions' scaledDebt
 
+    // ─── Supply side (cToken-style shares) + protocol reserves ──────────
+    // Suppliers deposit USDC and receive shares; the underlying-per-share
+    // exchange rate rises as borrow interest accrues (minus the reserve cut).
+    uint256 public totalSupplyShares;
+    mapping(address => uint256) public supplyShares;
+    uint256 public totalReserves; // protocol's cut of interest (owner-withdrawable)
+
     // ─── User state ─────────────────────────────────────────────────────
     mapping(address => Position[]) internal _positions;
     mapping(address => CreditData) public credit;
@@ -113,6 +120,7 @@ contract LendingBorrowingV2 is Ownable, ReentrancyGuard {
     error NotLiquidatable();
     error PositionHealthy();
     error WouldBeUndercollateralized();
+    error InsufficientShares();
 
     // ─── Events ─────────────────────────────────────────────────────────
     event PositionOpened(address indexed user, uint256 indexed positionId);
@@ -128,6 +136,9 @@ contract LendingBorrowingV2 is Ownable, ReentrancyGuard {
         uint256 collateralSeized
     );
     event PoolFunded(uint256 amount);
+    event Supplied(address indexed supplier, uint256 amount, uint256 shares);
+    event SupplyWithdrawn(address indexed supplier, uint256 amount, uint256 shares);
+    event ReservesWithdrawn(uint256 amount);
     event OracleUpdated(address indexed newOracle);
     event RiskParamsUpdated(
         uint256 collateralFactorBps,
@@ -262,7 +273,7 @@ contract LendingBorrowingV2 is Ownable, ReentrancyGuard {
         uint256 newDebt = _debtOf(p) + amount;
         uint256 capacity = _collateralValue(p.collateral) * effectiveCollateralFactorBps(msg.sender) / BPS;
         if (newDebt > capacity) revert ExceedsBorrowLimit();
-        if (lendingToken.balanceOf(address(this)) < amount) revert InsufficientLiquidity();
+        if (_availableCash() < amount) revert InsufficientLiquidity();
 
         uint256 scaledDelta = _toScaled(amount);
         p.scaledDebt += scaledDelta;
@@ -361,13 +372,71 @@ contract LendingBorrowingV2 is Ownable, ReentrancyGuard {
         emit Liquidation(msg.sender, user, positionId, repay, seize);
     }
 
+    // ─── Supply side (earn yield) ───────────────────────────────────────
+
+    /**
+     * @notice Supply USDC to the pool to earn yield. Mints supply shares whose
+     *         underlying value rises as borrow interest accrues. Requires approval.
+     */
+    function supply(uint256 amount) external nonReentrant {
+        if (amount == 0) revert ZeroAmount();
+        _accrue();
+        // Shares priced off the current exchange rate, before the deposit lands.
+        uint256 shares = (amount * WAD) / exchangeRate();
+        if (shares == 0) revert ZeroAmount();
+        supplyShares[msg.sender] += shares;
+        totalSupplyShares += shares;
+        lendingToken.safeTransferFrom(msg.sender, address(this), amount);
+        emit Supplied(msg.sender, amount, shares);
+    }
+
+    /**
+     * @notice Withdraw supplied USDC plus earned interest. `amount` is capped at
+     *         your current supply balance; withdrawing your full balance burns
+     *         all your shares exactly (no dust).
+     */
+    function withdrawSupply(uint256 amount) external nonReentrant {
+        if (amount == 0) revert ZeroAmount();
+        _accrue();
+        uint256 balance = supplyBalanceOf(msg.sender);
+        if (amount > balance) amount = balance;
+        if (amount == 0) revert InsufficientShares();
+
+        uint256 shares;
+        if (amount == balance) {
+            shares = supplyShares[msg.sender]; // full exit — burn everything
+        } else {
+            uint256 rate = exchangeRate();
+            shares = (amount * WAD) / rate;
+            if ((shares * rate) / WAD < amount) shares += 1; // round up so we never under-burn
+            if (shares > supplyShares[msg.sender]) shares = supplyShares[msg.sender];
+        }
+        if (_availableCash() < amount) revert InsufficientLiquidity();
+
+        supplyShares[msg.sender] -= shares;
+        totalSupplyShares -= shares;
+        lendingToken.safeTransfer(msg.sender, amount);
+        emit SupplyWithdrawn(msg.sender, amount, shares);
+    }
+
     // ─── Owner actions ──────────────────────────────────────────────────
 
-    /// @notice Fund the USDC lending pool. Requires prior approval.
+    /// @notice Fund the USDC lending pool as protocol-owned liquidity (no shares).
     function fundPool(uint256 amount) external onlyOwner {
         if (amount == 0) revert ZeroAmount();
         lendingToken.safeTransferFrom(msg.sender, address(this), amount);
         emit PoolFunded(amount);
+    }
+
+    /// @notice Withdraw accumulated protocol reserves (interest cut) to the owner.
+    function withdrawReserves(uint256 amount) external onlyOwner {
+        if (amount == 0) revert ZeroAmount();
+        _accrue();
+        if (amount > totalReserves) revert InvalidParam();
+        if (getCash() < amount) revert InsufficientLiquidity();
+        totalReserves -= amount;
+        lendingToken.safeTransfer(msg.sender, amount);
+        emit ReservesWithdrawn(amount);
     }
 
     /// @notice Swap the price oracle (e.g. mock -> Chainlink adapter). See {IPriceOracle}.
@@ -518,12 +587,34 @@ contract LendingBorrowingV2 is Ownable, ReentrancyGuard {
         return totalScaledDebt * _projectedBorrowIndex() / WAD;
     }
 
-    /// @notice USDC available to borrow (idle pool cash).
+    /// @notice USDC available to borrow (idle cash, excluding protocol reserves).
     function poolLiquidity() external view returns (uint256) {
+        return _availableCash();
+    }
+
+    /// @notice Raw USDC held by the contract.
+    function getCash() public view returns (uint256) {
         return lendingToken.balanceOf(address(this));
     }
 
-    /// @notice WAD-scaled pool utilization = borrows / (borrows + cash).
+    /// @notice Total USDC owned by suppliers (cash + borrows − reserves).
+    function totalSupplied() public view returns (uint256) {
+        uint256 gross = getCash() + totalBorrows();
+        return gross > totalReserves ? gross - totalReserves : 0;
+    }
+
+    /// @notice Underlying USDC per supply share (WAD-scaled).
+    function exchangeRate() public view returns (uint256) {
+        if (totalSupplyShares == 0) return WAD;
+        return (totalSupplied() * WAD) / totalSupplyShares;
+    }
+
+    /// @notice A supplier's current USDC balance (principal + earned interest).
+    function supplyBalanceOf(address user) public view returns (uint256) {
+        return (supplyShares[user] * exchangeRate()) / WAD;
+    }
+
+    /// @notice WAD-scaled pool utilization = borrows / (cash + borrows − reserves).
     function utilization() public view returns (uint256) {
         return _utilization(totalBorrows());
     }
@@ -591,7 +682,11 @@ contract LendingBorrowingV2 is Ownable, ReentrancyGuard {
             uint256 debt = totalScaledDebt * borrowIndex / WAD;
             uint256 ratePerYear = _borrowRatePerYear(_utilization(debt));
             uint256 interestFactor = ratePerYear * dt / SECONDS_PER_YEAR; // WAD
+            uint256 interestAccrued = debt * interestFactor / WAD;
             borrowIndex += borrowIndex * interestFactor / WAD;
+            // Protocol keeps a cut of the interest as reserves; the rest lifts
+            // the supply exchange rate (suppliers earn it).
+            totalReserves += interestAccrued * reserveFactorBps / BPS;
         }
         lastAccrualTime = block.timestamp;
         emit InterestAccrued(borrowIndex, totalScaledDebt * borrowIndex / WAD);
@@ -619,10 +714,19 @@ contract LendingBorrowingV2 is Ownable, ReentrancyGuard {
     }
 
     /// @dev WAD-scaled utilization for a given outstanding-borrow figure.
+    ///      Denominator is the suppliers' underlying: cash + borrows − reserves.
     function _utilization(uint256 debt) internal view returns (uint256) {
         if (debt == 0) return 0;
         uint256 cash = lendingToken.balanceOf(address(this));
-        return debt * WAD / (debt + cash);
+        uint256 denom = cash + debt > totalReserves ? cash + debt - totalReserves : 0;
+        if (denom == 0) return WAD;
+        return debt * WAD / denom;
+    }
+
+    /// @dev Cash available to borrow or withdraw, excluding protocol reserves.
+    function _availableCash() internal view returns (uint256) {
+        uint256 cash = lendingToken.balanceOf(address(this));
+        return cash > totalReserves ? cash - totalReserves : 0;
     }
 
     /// @dev Kinked borrow-rate curve, WAD-scaled per year.

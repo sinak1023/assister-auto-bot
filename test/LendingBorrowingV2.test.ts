@@ -65,10 +65,11 @@ async function deployFixture() {
     CLOSE_FACTOR,
   );
 
-  // Fund the pool with 500,000 USDC.
+  // Seed 500,000 USDC of liquidity via the supply side (share-backed), so the
+  // pool is borrowable and the owner is the initial supplier.
   await usdcToken.allocateTo(owner.address, usdc(500_000));
   await usdcToken.approve(await lending.getAddress(), usdc(500_000));
-  await lending.fundPool(usdc(500_000));
+  await lending.supply(usdc(500_000));
 
   // Seed users with cirBTC + USDC and approvals.
   for (const u of [alice, bob, liquidator]) {
@@ -323,6 +324,67 @@ describe("LendingBorrowingV2", () => {
       const s = await lending.accountSummary(alice.address);
       expect(s.totalCollateral).to.equal(cir(3));
       expect(s.totalDebtOut).to.be.gte(usdc(30_000));
+    });
+  });
+
+  describe("supply side & reserves", () => {
+    it("mints shares ~1:1 for the first suppliers and tracks balances", async () => {
+      const { lending, bob } = await deployFixture();
+      // Owner already supplied 500k in the fixture at rate 1.0.
+      await lending.connect(bob).supply(usdc(100_000));
+      expect(await lending.supplyBalanceOf(bob.address)).to.be.closeTo(usdc(100_000), 10n);
+      expect(await lending.totalSupplied()).to.be.closeTo(usdc(600_000), 10n);
+    });
+
+    it("grows supplier balances and accrues reserves as interest is paid", async () => {
+      const { lending, bob, alice } = await deployFixture();
+      await lending.connect(bob).supply(usdc(100_000));
+      const before = await lending.supplyBalanceOf(bob.address);
+
+      // Create borrow demand, then let a year pass.
+      await openAndBorrow(lending, alice, cir(5), usdc(200_000));
+      await time.increase(365 * 24 * 60 * 60);
+
+      const after = await lending.supplyBalanceOf(bob.address);
+      expect(after).to.be.gt(before); // earned yield (projected via the live index)
+
+      // Reserves are persisted on a state change (not projected), so touch state.
+      await lending.connect(alice).repayLoan(0, usdc(1));
+      expect(await lending.totalReserves()).to.be.gt(0n); // protocol took its cut
+    });
+
+    it("lets a supplier withdraw principal + interest and burns shares", async () => {
+      const { lending, bob, usdcToken } = await deployFixture();
+      await lending.connect(bob).supply(usdc(100_000));
+      const balBefore = await usdcToken.balanceOf(bob.address);
+      await lending.connect(bob).withdrawSupply(ethers.MaxUint256); // cap → full exit
+      expect(await lending.supplyShares(bob.address)).to.equal(0n);
+      expect(await usdcToken.balanceOf(bob.address)).to.be.gte(balBefore + usdc(100_000) - 10n);
+    });
+
+    it("blocks withdrawing more liquidity than is available (borrowed out)", async () => {
+      const { lending, alice, owner } = await deployFixture();
+      // Borrow most of the pool so cash is low.
+      await openAndBorrow(lending, alice, cir(10), usdc(480_000));
+      await expect(
+        lending.connect(owner).withdrawSupply(usdc(100_000)),
+      ).to.be.revertedWithCustomError(lending, "InsufficientLiquidity");
+    });
+
+    it("lets the owner withdraw reserves, but not more than accrued", async () => {
+      const { lending, owner, alice } = await deployFixture();
+      await openAndBorrow(lending, alice, cir(5), usdc(200_000));
+      await time.increase(365 * 24 * 60 * 60);
+      // A harmless state-changing touch persists the accrued reserves.
+      await lending.connect(alice).repayLoan(0, usdc(1));
+      const reserves = await lending.totalReserves();
+      expect(reserves).to.be.gt(0n);
+      await expect(
+        lending.connect(alice).withdrawReserves(reserves),
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+      await expect(lending.connect(owner).withdrawReserves(reserves + usdc(1_000_000)))
+        .to.be.revertedWithCustomError(lending, "InvalidParam");
+      await expect(lending.connect(owner).withdrawReserves(reserves)).to.not.be.reverted;
     });
   });
 
