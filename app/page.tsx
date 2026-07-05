@@ -24,8 +24,9 @@ import { Badge } from "@/components/ui/badge";
 import { TransactionHistory } from "@/components/transactions/TransactionHistory";
 import { useWallet } from "@/contexts/WalletContext";
 import { useLendingState } from "@/hooks/lending/useLendingState";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StatCard } from "@/components/lending/StatCard";
 import { PricePanel } from "@/components/lending/PricePanel";
-import { Faucet } from "@/components/lending/Faucet";
 import { PositionCard } from "@/components/lending/PositionCard";
 import { OpenPositionCard } from "@/components/lending/OpenPositionCard";
 import { TreasuryDashboard } from "@/components/lending/TreasuryDashboard";
@@ -55,6 +56,12 @@ export default function LendingPage() {
   const s = useLendingState(connected ? address : undefined);
   const notDeployed = LENDING_ADDRESS === ZERO;
 
+  // Positions that were opened but are no longer active = fully repaid or fully
+  // liquidated. Their details can't be read (the contract guards inactive reads),
+  // so we derive their ids from the total count minus the active ones.
+  const activeIds = new Set(s.positions.map((p) => p.id));
+  const closedIds = Array.from({ length: s.positionCount }, (_, i) => i).filter((i) => !activeIds.has(i));
+
   const ctx = {
     price: s.price,
     priceDecimals: s.priceDecimals,
@@ -74,7 +81,7 @@ export default function LendingPage() {
         <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
           Institutional lending · Arc Testnet
         </p>
-        <h1 className="mt-1 font-display text-3xl font-bold tracking-tight sm:text-4xl">Arc Vault</h1>
+        <h1 className="mt-1 font-display text-3xl font-bold tracking-tight sm:text-4xl">LendArc</h1>
         <p className="mt-1.5 max-w-xl text-sm text-muted-foreground">
           Borrow USDC against cirBTC — with live risk, dynamic rates, on-chain credit, and a real supply side.
         </p>
@@ -128,26 +135,31 @@ export default function LendingPage() {
         <TabsContent value="portfolio" className="space-y-5">
           <div className="grid gap-4 md:grid-cols-2">
             <PricePanel price={s.price} priceDecimals={s.priceDecimals} onSuccess={s.refetch} />
-            {connected ? (
-              <Faucet usdcBalance={s.usdcBalance} cirBtcBalance={s.cirBtcBalance} onSuccess={s.refetch} />
-            ) : (
-              <div className="flex items-center justify-center rounded-lg border border-border bg-card/50 p-8 text-center text-sm text-muted-foreground">
-                Connect your wallet to mint test tokens and open positions.
-              </div>
-            )}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Protocol totals</CardTitle>
+                <p className="text-xs text-muted-foreground">Across all users on this market.</p>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-3">
+                  <StatCard label="Total lent" value={compactUsd(s.totalSupplied)} sub="supplied by everyone" accent="var(--positive)" />
+                  <StatCard label="Total borrowed" value={compactUsd(s.totalBorrows)} sub="incl. accrued interest" accent="var(--primary)" />
+                </div>
+                <p className="mt-3 text-xs text-muted-foreground">
+                  Get test tokens from the faucet buttons in the header (fixed amounts, once per 24h).
+                </p>
+              </CardContent>
+            </Card>
           </div>
 
           {connected && (
             <>
-              {s.positions.length > 0 && (
-                <div className="grid gap-4 lg:grid-cols-2">
-                  {s.positions.map((p) => (
-                    <PositionCard key={p.id} position={p} ctx={ctx} onSuccess={s.refetch} />
-                  ))}
-                </div>
-              )}
-
-              <div className="grid gap-4 lg:grid-cols-2">
+              {/* Active positions and the open-position card share one grid, so a
+                  single position sits next to "Open" with no empty placeholder. */}
+              <div className="grid items-start gap-4 lg:grid-cols-2">
+                {s.positions.map((p) => (
+                  <PositionCard key={p.id} position={p} ctx={ctx} onSuccess={s.refetch} />
+                ))}
                 <OpenPositionCard
                   cirBtcBalance={s.cirBtcBalance}
                   cirBtcAllowance={s.cirBtcAllowance}
@@ -156,12 +168,24 @@ export default function LendingPage() {
                   effectiveCollateralFactorBps={s.effectiveCollateralFactorBps}
                   onSuccess={s.refetch}
                 />
-                {s.positions.length === 0 && (
-                  <div className="flex items-center justify-center rounded-lg border border-dashed border-border bg-card/40 p-8 text-center text-sm text-muted-foreground">
-                    No open positions yet. Deposit cirBTC to open your first one.
-                  </div>
-                )}
               </div>
+
+              {closedIds.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Closed positions</CardTitle>
+                    <p className="text-xs text-muted-foreground">Fully repaid or fully liquidated.</p>
+                  </CardHeader>
+                  <CardContent className="flex flex-wrap gap-2">
+                    {closedIds.map((id) => (
+                      <span key={id} className="inline-flex items-center gap-1.5 rounded-md bg-secondary px-2.5 py-1 text-xs">
+                        Position #{id}
+                        <Badge variant="secondary" className="bg-muted text-muted-foreground">Closed</Badge>
+                      </span>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
 
               {address && <TransactionHistory wallet={address} />}
             </>
@@ -211,6 +235,10 @@ export default function LendingPage() {
             connectedAddress={connected ? address : undefined}
             usdcBalance={s.usdcBalance}
             usdcAllowance={s.usdcAllowance}
+            price={s.price}
+            priceDecimals={s.priceDecimals}
+            closeFactorBps={s.closeFactorBps}
+            liquidationBonusBps={s.liquidationBonusBps}
             onSuccess={s.refetch}
           />
         </TabsContent>

@@ -38,7 +38,7 @@ import {
 } from "@/hooks/lending/useLendingActions";
 import { COLLATERAL_DECIMALS, LOAN_DECIMALS } from "@/lib/contracts/addresses";
 import { simulate, simulateAfter, type SimInputs } from "@/lib/simulate";
-import { hfToNumber, formatUsd, formatCirBtc } from "@/lib/format";
+import { hfToNumber, formatHFNumber, formatUsd, formatCirBtc } from "@/lib/format";
 
 const APPROVE_CIRBTC = parseUnits("1000000", COLLATERAL_DECIMALS);
 const APPROVE_USDC = parseUnits("100000000", LOAN_DECIMALS);
@@ -74,7 +74,7 @@ function busyOf(a: { isPending: boolean; isConfirming: boolean; isSubmitted: boo
 // One line that previews the resulting position state before the user confirms.
 function AfterPreview({ before, after }: { before: number; after: number; }) {
   const color = !Number.isFinite(after) ? "var(--positive)" : after < 1 ? "var(--danger)" : after < 1.5 ? "var(--caution)" : "var(--positive)";
-  const fmt = (n: number) => (!Number.isFinite(n) ? "∞" : n.toFixed(2));
+  const fmt = formatHFNumber;
   return (
     <p className="text-xs text-muted-foreground">
       Health factor <span className="font-mono">{fmt(before)}</span>
@@ -137,7 +137,13 @@ export function PositionCard({
 
   // Previews
   const afterBorrow = borrowAmt ? simulateAfter(inputs, 0n, parseUnits(borrowAmt || "0", LOAN_DECIMALS)).hf : cur.hf;
-  const afterRepay = repayAmt ? simulateAfter(inputs, 0n, -parseUnits(repayAmt || "0", LOAN_DECIMALS)).hf : cur.hf;
+  // A full repay closes the debt → HF is effectively infinite; guard against a
+  // dust remainder (from interest ticking) showing an astronomical number.
+  const afterRepay = repayAmt
+    ? parseFloat(repayAmt) >= num(position.debt, LOAN_DECIMALS) - 1e-9
+      ? Infinity
+      : simulateAfter(inputs, 0n, -parseUnits(repayAmt || "0", LOAN_DECIMALS)).hf
+    : cur.hf;
   const afterAdd = addAmt ? simulateAfter(inputs, parseUnits(addAmt || "0", COLLATERAL_DECIMALS), 0n).hf : cur.hf;
   const afterWithdraw = withdrawAmt ? simulateAfter(inputs, -parseUnits(withdrawAmt || "0", COLLATERAL_DECIMALS), 0n).hf : cur.hf;
 

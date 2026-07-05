@@ -24,6 +24,8 @@
 // toward liquidation. HF 1.0 is marked as a physical tick. The needle sweeps
 // on change, respecting prefers-reduced-motion.
 
+import { formatHFNumber } from "@/lib/format";
+
 interface HealthFactorGaugeProps {
   hf: number; // Infinity when the position has no debt
   size?: number; // width in px
@@ -78,7 +80,7 @@ export function HealthFactorGauge({ hf, size = 220, className }: HealthFactorGau
   const needleLen = r - stroke / 2;
   const rotateDeg = ang - 180;
 
-  const display = !Number.isFinite(hf) ? "∞" : hf.toFixed(2);
+  const display = formatHFNumber(hf);
 
   return (
     <div className={`hf-gauge ${className ?? ""}`} style={{ width: W }}>

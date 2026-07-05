@@ -27,7 +27,7 @@ export function Navbar() {
       <div className="container mx-auto flex max-w-5xl flex-col gap-2 px-3 py-2 sm:h-14 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-4 sm:py-0">
         <Link href="/" className="flex shrink-0 items-center gap-2.5">
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/15 text-primary ring-1 ring-inset ring-primary/25">◈</span>
-          <span className="font-display text-base font-semibold tracking-tight sm:text-lg">Arc Vault</span>
+          <span className="font-display text-base font-semibold tracking-tight sm:text-lg">LendArc</span>
         </Link>
         <ConnectWallet />
       </div>

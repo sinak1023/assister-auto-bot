@@ -21,6 +21,7 @@ import { Space_Grotesk, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { Navbar } from "@/components/Navbar";
+import { LiquidBackground } from "@/components/LiquidBackground";
 
 // Display — Space Grotesk: section titles + the health-factor gauge headline.
 const display = Space_Grotesk({
@@ -44,7 +45,7 @@ const dataMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Arc Vault — Lend & Borrow",
+  title: "LendArc — Lend & Borrow",
   description:
     "Institution-grade lending on Arc: borrow USDC against cirBTC with live health factors, liquidations, dynamic rates, and on-chain credit.",
 };
@@ -60,6 +61,7 @@ export default function RootLayout({
       className={`${display.variable} ${body.variable} ${dataMono.variable} h-full antialiased dark font-sans`}
     >
       <body className="min-h-full flex flex-col">
+        <LiquidBackground />
         <Providers>
           <Navbar />
           <main className="flex-1">{children}</main>

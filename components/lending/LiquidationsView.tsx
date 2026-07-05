@@ -26,55 +26,105 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { TxStatus } from "@/components/trading/TxStatus";
 import { useLendingState, type PositionDetails } from "@/hooks/lending/useLendingState";
+import { useAtRiskPositions } from "@/hooks/lending/useAtRiskPositions";
 import { useLiquidate, useApproveUsdc } from "@/hooks/lending/useLendingActions";
 import { LOAN_DECIMALS } from "@/lib/contracts/addresses";
 import { formatUsd, formatCirBtc, formatHF, hfToNumber, priceToNumber, bpsToPct } from "@/lib/format";
 
 const APPROVE_USDC = parseUnits("100000000", LOAN_DECIMALS);
 
+interface Market {
+  price: bigint | undefined;
+  priceDecimals: number | undefined;
+  closeFactorBps: bigint | undefined;
+  liquidationBonusBps: bigint | undefined;
+}
+
 export function LiquidationsView({
   connectedAddress,
   usdcBalance,
   usdcAllowance,
+  price,
+  priceDecimals,
+  closeFactorBps,
+  liquidationBonusBps,
   onSuccess,
 }: {
   connectedAddress: Address | undefined;
   usdcBalance: bigint | undefined;
   usdcAllowance: bigint | undefined;
+  price: bigint | undefined;
+  priceDecimals: number | undefined;
+  closeFactorBps: bigint | undefined;
+  liquidationBonusBps: bigint | undefined;
   onSuccess: () => void;
 }) {
+  const market: Market = { price, priceDecimals, closeFactorBps, liquidationBonusBps };
   const [input, setInput] = useState("");
   const [target, setTarget] = useState<Address | undefined>(undefined);
 
+  // Auto feed of at-risk positions across all known borrowers.
+  const feed = useAtRiskPositions();
+  const liquidatableNow = feed.positions.filter((p) => p.liquidatable);
+  const nearRisk = feed.positions.filter((p) => !p.liquidatable);
+
   const scan = useLendingState(target);
-  const atRisk = scan.positions.filter((p) => p.debt > 0n && hfToNumber(p.healthFactor) < 1);
-  const healthyWithDebt = scan.positions.filter((p) => p.debt > 0n && hfToNumber(p.healthFactor) >= 1);
+  const scanAtRisk = scan.positions.filter((p) => p.debt > 0n && hfToNumber(p.healthFactor) < 1);
+  const scanOther = scan.positions.filter((p) => p.debt > 0n && hfToNumber(p.healthFactor) >= 1);
 
   return (
     <div className="space-y-4">
+      {/* ── Auto feed ── */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Liquidations</CardTitle>
+          <CardTitle className="text-base">At-risk positions</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Look up any borrower&apos;s positions. Any position below health factor 1.0 can be liquidated by anyone —
-            repay part of its USDC debt and receive its cirBTC collateral plus a {bpsToPct(scan.liquidationBonusBps).toFixed(0)}% bonus.
+            Positions closest to (or past) liquidation, most urgent first. Any position below health factor 1.0 can be
+            liquidated by anyone — repay part of its USDC debt and receive its cirBTC plus a{" "}
+            {bpsToPct(liquidationBonusBps).toFixed(0)}% bonus.
           </p>
         </CardHeader>
         <CardContent className="space-y-3">
+          {!feed.configured ? (
+            <p className="text-xs text-muted-foreground">
+              Auto-discovery needs Supabase (to list borrowers). Use the lookup below to check a specific address.
+            </p>
+          ) : feed.positions.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No positions are near liquidation right now.</p>
+          ) : (
+            <>
+              {liquidatableNow.map((p) => (
+                <LiquidatableRow
+                  key={`${p.user}-${p.id}`}
+                  user={p.user}
+                  position={p}
+                  {...market}
+                  usdcBalance={usdcBalance}
+                  usdcAllowance={usdcAllowance}
+                  canAct={!!connectedAddress}
+                  onSuccess={() => { feed && onSuccess(); }}
+                />
+              ))}
+              {nearRisk.map((p) => (
+                <MonitorRow key={`${p.user}-${p.id}`} user={p.user} id={p.id} debt={p.debt} collateral={p.collateral} hf={p.healthFactor} />
+              ))}
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ── Manual lookup ── */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Look up an address</CardTitle>
+          <p className="text-xs text-muted-foreground">Check any borrower&apos;s positions directly.</p>
+        </CardHeader>
+        <CardContent className="space-y-3">
           <div className="flex gap-2">
-            <Input
-              placeholder="Borrower address (0x…)"
-              value={input}
-              onChange={(e) => setInput(e.target.value.trim())}
-              className="font-mono"
-            />
-            <Button onClick={() => isAddress(input) && setTarget(input as Address)} disabled={!isAddress(input)}>
-              Scan
-            </Button>
+            <Input placeholder="Borrower address (0x…)" value={input} onChange={(e) => setInput(e.target.value.trim())} className="font-mono" />
+            <Button onClick={() => isAddress(input) && setTarget(input as Address)} disabled={!isAddress(input)}>Scan</Button>
             {connectedAddress && (
-              <Button variant="outline" onClick={() => { setInput(connectedAddress); setTarget(connectedAddress); }}>
-                My positions
-              </Button>
+              <Button variant="outline" onClick={() => { setInput(connectedAddress); setTarget(connectedAddress); }}>My positions</Button>
             )}
           </div>
           {input && !isAddress(input) && <p className="text-xs text-danger">That doesn&apos;t look like a valid address.</p>}
@@ -83,13 +133,12 @@ export function LiquidationsView({
 
       {target && (
         <>
-          {atRisk.length === 0 && healthyWithDebt.length === 0 && (
+          {scanAtRisk.length === 0 && scanOther.length === 0 && (
             <p className="rounded-lg border border-border bg-card/50 p-6 text-center text-sm text-muted-foreground">
               No borrowing positions found for this address.
             </p>
           )}
-
-          {atRisk.map((p) => (
+          {scanAtRisk.map((p) => (
             <LiquidatableRow
               key={p.id}
               user={target}
@@ -104,24 +153,45 @@ export function LiquidationsView({
               onSuccess={() => { scan.refetch(); onSuccess(); }}
             />
           ))}
-
-          {healthyWithDebt.map((p) => (
-            <Card key={p.id}>
-              <CardContent className="flex items-center justify-between py-4">
-                <div>
-                  <p className="text-sm font-medium">Position #{p.id}</p>
-                  <p className="text-xs text-muted-foreground">Debt {formatUsd(p.debt)} · collateral {formatCirBtc(p.collateral)} cirBTC</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-mono text-sm text-positive">HF {formatHF(p.healthFactor)}</p>
-                  <Badge variant="secondary">Healthy</Badge>
-                </div>
-              </CardContent>
-            </Card>
+          {scanOther.map((p) => (
+            <MonitorRow key={p.id} user={target} id={p.id} debt={p.debt} collateral={p.collateral} hf={p.healthFactor} healthy />
           ))}
         </>
       )}
     </div>
+  );
+}
+
+// Compact read-only row for positions that are near-risk or healthy.
+function MonitorRow({
+  id,
+  debt,
+  collateral,
+  hf,
+  healthy,
+}: {
+  user: Address;
+  id: number;
+  debt: bigint;
+  collateral: bigint;
+  hf: bigint;
+  healthy?: boolean;
+}) {
+  const n = hfToNumber(hf);
+  const color = healthy || n >= 1.5 ? "var(--positive)" : n >= 1 ? "var(--caution)" : "var(--danger)";
+  return (
+    <Card>
+      <CardContent className="flex items-center justify-between py-4">
+        <div>
+          <p className="text-sm font-medium">Position #{id}</p>
+          <p className="text-xs text-muted-foreground">Debt {formatUsd(debt)} · collateral {formatCirBtc(collateral)} cirBTC</p>
+        </div>
+        <div className="text-right">
+          <p className="font-mono text-sm" style={{ color }}>HF {formatHF(hf)}</p>
+          <Badge variant="secondary">{healthy ? "Healthy" : "At risk"}</Badge>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -138,7 +208,7 @@ function LiquidatableRow({
   onSuccess,
 }: {
   user: Address;
-  position: PositionDetails;
+  position: Pick<PositionDetails, "id" | "collateral" | "debt" | "collateralValueLoan" | "healthFactor">;
   price: bigint | undefined;
   priceDecimals: number | undefined;
   closeFactorBps: bigint | undefined;

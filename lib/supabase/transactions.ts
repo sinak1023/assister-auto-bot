@@ -91,6 +91,26 @@ export async function insertTransaction(input: InsertTransactionInput): Promise<
   }
 }
 
+/**
+ * Distinct wallet addresses that have borrowed or opened a position — the set
+ * of accounts worth checking for liquidatable positions. Sourced from history
+ * since there's no on-chain enumeration of borrowers.
+ */
+export async function listBorrowers(limit = 40): Promise<string[]> {
+  const client = getSupabaseClient();
+  if (!client) return [];
+  const { data, error } = await client
+    .from("transactions")
+    .select("wallet_address")
+    .in("action", ["borrow", "open"])
+    .order("created_at", { ascending: false })
+    .limit(500);
+  if (error || !data) return [];
+  const seen = new Set<string>();
+  for (const row of data as { wallet_address: string }[]) seen.add(row.wallet_address);
+  return Array.from(seen).slice(0, limit);
+}
+
 export async function listTransactions(
   params: ListTransactionsParams,
 ): Promise<ListTransactionsResult> {

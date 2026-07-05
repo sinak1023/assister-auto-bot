@@ -26,11 +26,18 @@ export function hfToNumber(hf: bigint | undefined): number {
   return Number(formatUnits(hf, 18));
 }
 
-export function formatHF(hf: bigint | undefined): string {
-  const n = hfToNumber(hf);
+// Very large HF means a tiny debt relative to collateral — effectively "safe".
+// Cap the display so a near-zero debt doesn't render an astronomical number.
+const HF_DISPLAY_MAX = 999;
+
+export function formatHFNumber(n: number): string {
   if (Number.isNaN(n)) return "—";
-  if (!Number.isFinite(n)) return "∞";
+  if (!Number.isFinite(n) || n > HF_DISPLAY_MAX) return "∞";
   return n.toFixed(2);
+}
+
+export function formatHF(hf: bigint | undefined): string {
+  return formatHFNumber(hfToNumber(hf));
 }
 
 /** WAD-scaled per-year rate (1e18 = 100%) → percentage string. */

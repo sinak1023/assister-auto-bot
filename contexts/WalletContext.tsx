@@ -288,7 +288,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         setBundlerClient(null);
         localStorage.removeItem(STORAGE_KEY);
       }
-      wagmiConnect({ connector });
+      // Request the connection on Arc Testnet — wagmi asks the wallet to switch,
+      // and to add the chain (from our config: name, RPC, USDC gas token,
+      // explorer) if it doesn't have it yet.
+      wagmiConnect({ connector, chainId: arcTestnet.id });
     },
     [circleAddress, wagmiConnect],
   );
