@@ -72,7 +72,7 @@ export function CreditTab({
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">On-chain credit score</CardTitle>
+          <CardTitle className="text-base">On-Chain Credit Score</CardTitle>
           <p className="text-xs text-muted-foreground">
             Derived purely from your on-chain history on this protocol. A higher score unlocks a better personal
             collateral factor — always kept safely below the liquidation threshold.
@@ -103,7 +103,7 @@ export function CreditTab({
           </div>
 
           <div className="rounded-lg border border-border bg-secondary/40 p-3">
-            <p className="text-xs text-muted-foreground">Benefit unlocked</p>
+            <p className="text-xs text-muted-foreground">Benefit Unlocked</p>
             <p className="mt-1 text-sm">
               Collateral factor{" "}
               <span className="font-mono text-muted-foreground line-through">{base.toFixed(0)}%</span>{" "}
@@ -120,7 +120,7 @@ export function CreditTab({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">What shapes your score</CardTitle>
+          <CardTitle className="text-base">What Shapes Your Score</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           {factors.map((f) => (

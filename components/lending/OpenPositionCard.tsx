@@ -66,8 +66,8 @@ export function OpenPositionCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Open a new position</CardTitle>
-        <p className="text-xs text-muted-foreground">Deposit cirBTC as collateral to start a fresh, independent position.</p>
+        <CardTitle className="text-base">Open a New Position</CardTitle>
+        <p className="text-xs text-muted-foreground">Deposit cirBTC as collateral to start a position.</p>
       </CardHeader>
       <CardContent className="space-y-3">
         <div>
@@ -86,7 +86,7 @@ export function OpenPositionCard({
             }}
             className="mt-1 font-mono"
           />
-          <p className="mt-1 text-xs text-muted-foreground">Wallet {formatCirBtc(cirBtcBalance)} cirBTC</p>
+          <p className="mt-1 text-xs text-muted-foreground">Wallet amount {formatCirBtc(cirBtcBalance)} cirBTC</p>
         </div>
 
         {amtN > 0 && (

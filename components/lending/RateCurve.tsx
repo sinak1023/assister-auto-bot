@@ -80,7 +80,7 @@ export function RateCurve({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Interest rate model</CardTitle>
+        <CardTitle className="text-base">Interest Rate Model</CardTitle>
         <p className="text-xs text-muted-foreground">
           Borrow APR rises with utilization, steepening past the {(k * 100).toFixed(0)}% kink.
         </p>

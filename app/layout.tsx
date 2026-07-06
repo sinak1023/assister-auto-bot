@@ -65,6 +65,10 @@ export default function RootLayout({
         <Providers>
           <Navbar />
           <main className="flex-1">{children}</main>
+          <footer className="border-t border-white/[0.06] py-6 text-center text-xs text-muted-foreground">
+            Developed by <span className="font-medium text-foreground">Blockvers</span> · Powered by{" "}
+            <span className="font-medium text-foreground">Arc</span>
+          </footer>
         </Providers>
       </body>
     </html>

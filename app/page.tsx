@@ -83,7 +83,7 @@ export default function LendingPage() {
         </p>
         <h1 className="mt-1 font-display text-3xl font-bold tracking-tight sm:text-4xl">LendArc</h1>
         <p className="mt-1.5 max-w-xl text-sm text-muted-foreground">
-          Borrow USDC against cirBTC — with live risk, dynamic rates, on-chain credit, and a real supply side.
+          Lendarc is a lending protocol on Arc allowing users to borrow USDC against cirBTC.
         </p>
 
         {/* Live market ticker (hairline grid) */}
@@ -137,17 +137,14 @@ export default function LendingPage() {
             <PricePanel price={s.price} priceDecimals={s.priceDecimals} onSuccess={s.refetch} />
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Protocol totals</CardTitle>
+                <CardTitle className="text-base">Total Lend - Borrow</CardTitle>
                 <p className="text-xs text-muted-foreground">Across all users on this market.</p>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 gap-3">
-                  <StatCard label="Total lent" value={compactUsd(s.totalSupplied)} sub="supplied by everyone" accent="var(--positive)" />
-                  <StatCard label="Total borrowed" value={compactUsd(s.totalBorrows)} sub="incl. accrued interest" accent="var(--primary)" />
+                  <StatCard label="Total Lend" value={compactUsd(s.poolLiquidity)} sub="Available to borrow" accent="var(--positive)" />
+                  <StatCard label="Total Borrow" value={compactUsd(s.totalBorrows)} sub="Currently borrowed" accent="var(--primary)" />
                 </div>
-                <p className="mt-3 text-xs text-muted-foreground">
-                  Get test tokens from the faucet buttons in the header (fixed amounts, once per 24h).
-                </p>
               </CardContent>
             </Card>
           </div>
@@ -173,7 +170,7 @@ export default function LendingPage() {
               {closedIds.length > 0 && (
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-base">Closed positions</CardTitle>
+                    <CardTitle className="text-base">Closed Positions</CardTitle>
                     <p className="text-xs text-muted-foreground">Fully repaid or fully liquidated.</p>
                   </CardHeader>
                   <CardContent className="flex flex-wrap gap-2">

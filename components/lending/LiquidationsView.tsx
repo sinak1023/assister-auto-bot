@@ -77,7 +77,7 @@ export function LiquidationsView({
       {/* ── Auto feed ── */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">At-risk positions</CardTitle>
+          <CardTitle className="text-base">At-Risk Positions</CardTitle>
           <p className="text-xs text-muted-foreground">
             Positions closest to (or past) liquidation, most urgent first. Any position below health factor 1.0 can be
             liquidated by anyone — repay part of its USDC debt and receive its cirBTC plus a{" "}
@@ -116,7 +116,7 @@ export function LiquidationsView({
       {/* ── Manual lookup ── */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Look up an address</CardTitle>
+          <CardTitle className="text-base">Look Up an Address</CardTitle>
           <p className="text-xs text-muted-foreground">Check any borrower&apos;s positions directly.</p>
         </CardHeader>
         <CardContent className="space-y-3">

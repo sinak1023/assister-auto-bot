@@ -248,7 +248,7 @@ export function PositionCard({
               value={addAmt}
               onChange={(v) => setAddAmt(clamp(v, maxAdd))}
               onMax={() => setAddAmt(String(maxAdd))}
-              maxLabel={`Wallet ${formatCirBtc(ctx.cirBtcBalance)} cirBTC`}
+              maxLabel={`Wallet amount ${formatCirBtc(ctx.cirBtcBalance)} cirBTC`}
             />
             <AfterPreview before={cur.hf} after={afterAdd} />
             {needCirApproval ? (

@@ -64,17 +64,17 @@ export function PricePanel({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
-          cirBTC price
+          cirBTC Price
           <Badge variant="secondary">demo oracle</Badge>
         </CardTitle>
         <p className="text-xs text-muted-foreground">
-          Move the price to watch health factors react. Testnet only — mainnet uses a live Chainlink feed.
+          Move the price to watch health factors react. Testnet only.
         </p>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex items-baseline justify-between">
-          <span className="text-xs text-muted-foreground">Current</span>
-          <span className="font-mono text-2xl font-semibold text-gold">
+          <span className="text-base font-semibold text-foreground">Current Price</span>
+          <span className="font-mono text-2xl font-bold text-gold">
             {Number.isFinite(current) ? `$${current.toLocaleString("en-US", { maximumFractionDigits: 2 })}` : "—"}
           </span>
         </div>

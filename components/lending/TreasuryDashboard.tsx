@@ -53,22 +53,21 @@ export function TreasuryDashboard({
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Pool overview</CardTitle>
-          <p className="text-xs text-muted-foreground">USDC market backed by cirBTC collateral on Arc.</p>
+          <CardTitle className="text-base">Pool Overview</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <StatCard label="Total supplied (TVL)" value={compactUsd(tvl)} sub="cash + borrows" />
-            <StatCard label="Available to borrow" value={compactUsd(poolLiquidity)} sub="idle pool cash" />
-            <StatCard label="Total borrowed" value={compactUsd(totalBorrows)} sub="incl. accrued interest" />
-            <StatCard label="Utilization" value={util !== undefined ? `${(util * 100).toFixed(1)}%` : "—"} sub={`borrow ${formatRatePct(borrowAPR)} · supply ${formatRatePct(supplyAPY)}`} />
+            <StatCard label="Total Supplied (TVL)" value={compactUsd(tvl)} />
+            <StatCard label="Available to Borrow" value={compactUsd(poolLiquidity)} />
+            <StatCard label="Total Borrowed" value={compactUsd(totalBorrows)} />
+            <StatCard label="Utilization" value={util !== undefined ? `${(util * 100).toFixed(1)}%` : "—"} sub={`Borrow ${formatRatePct(borrowAPR)} · Supply ${formatRatePct(supplyAPY)}`} />
           </div>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Your portfolio</CardTitle>
+          <CardTitle className="text-base">Your Portfolio</CardTitle>
           <p className="text-xs text-muted-foreground">Aggregated across all your positions.</p>
         </CardHeader>
         <CardContent>
@@ -76,9 +75,9 @@ export function TreasuryDashboard({
             <p className="py-4 text-center text-sm text-muted-foreground">Connect your wallet to see your portfolio.</p>
           ) : (
             <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-              <StatCard label="Collateral value" value={formatUsd(totalCollateralValue)} sub="cirBTC at oracle price" />
-              <StatCard label="Total debt" value={formatUsd(totalDebt)} sub="USDC owed" />
-              <StatCard label="Account health" value={formatHF(accountHealthFactor)} sub="aggregate HF" accent={aggColor} />
+              <StatCard label="Collateral Value" value={formatUsd(totalCollateralValue)} sub="cirBTC at oracle price" />
+              <StatCard label="Total Debt" value={formatUsd(totalDebt)} sub="USDC owed" />
+              <StatCard label="Account Health" value={formatHF(accountHealthFactor)} sub="Aggregate HF" accent={aggColor} />
             </div>
           )}
         </CardContent>

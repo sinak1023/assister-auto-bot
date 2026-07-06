@@ -82,9 +82,9 @@ export function SupplyPanel({
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-        <StatCard label="Supply APY" value={formatRatePct(supplyAPY)} accent="var(--positive)" sub="paid by borrowers" />
-        <StatCard label="You supplied" value={connected ? formatUsd(supplyBalance) : "—"} sub="principal + interest" />
-        <StatCard label="Pool total supplied" value={compactUsd(totalSupplied)} sub="all suppliers" />
+        <StatCard label="Supply APY" value={formatRatePct(supplyAPY)} accent="var(--positive)" sub="Paid by borrowers" />
+        <StatCard label="Your Supply" value={connected ? formatUsd(supplyBalance) : "—"} />
+        <StatCard label="Total Supply (USDC)" value={compactUsd(totalSupplied)} />
       </div>
 
       <Card>
@@ -94,7 +94,7 @@ export function SupplyPanel({
             <Badge variant="secondary">USDC</Badge>
           </CardTitle>
           <p className="text-xs text-muted-foreground">
-            Supply USDC to the pool and earn yield from borrowers. Withdraw anytime, up to available liquidity.
+            Supply USDC and earn from borrowers. (Withdraw anytime, up to available liquidity)
           </p>
         </CardHeader>
         <CardContent>

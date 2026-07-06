@@ -140,7 +140,7 @@ export function TransactionHistory({ wallet }: TransactionHistoryProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Transaction history</CardTitle>
+        <CardTitle className="text-base">Transaction History</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
