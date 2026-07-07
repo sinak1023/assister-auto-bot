@@ -1,0 +1,14 @@
+.gradle/
+build/
+app/build/
+local.properties
+.idea/
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
+
+# NOTE: hermes-release.keystore and keystore.properties ARE committed on purpose
+# so the signed release APK stays reproducible and the installed app remains
+# updatable (Android requires the same signing key to update an app). This is a
+# personal project repo; move these to a secret store for any public/shared use.

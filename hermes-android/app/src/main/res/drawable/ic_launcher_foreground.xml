@@ -1,0 +1,19 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Winged "H" emblem for Hermes -->
+    <path
+        android:fillColor="#7C9CFF"
+        android:pathData="M40,38 L46,38 L46,51 L62,51 L62,38 L68,38 L68,74 L62,74 L62,57 L46,57 L46,74 L40,74 Z" />
+    <path
+        android:fillColor="#4A6BFF"
+        android:pathData="M28,44 C33,42 38,42 42,45 L42,49 C38,46 33,46 29,48 Z" />
+    <path
+        android:fillColor="#4A6BFF"
+        android:pathData="M80,44 C75,42 70,42 66,45 L66,49 C70,46 75,46 79,48 Z" />
+    <path
+        android:fillColor="#A9BEFF"
+        android:pathData="M50,30 L58,30 L54,36 Z" />
+</vector>
