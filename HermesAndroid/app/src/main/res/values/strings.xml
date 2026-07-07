@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Hermes</string>
+    <string name="splash_credit">developed by ostad kachal</string>
+    <string name="tagline">The agent that grows with you</string>
+</resources>

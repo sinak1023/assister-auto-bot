@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="hermes_bg">#0B0F14</color>
+    <color name="hermes_primary">#5B8DEF</color>
+    <color name="hermes_accent">#7C5CFF</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="black">#FF000000</color>
+    <color name="ic_launcher_bg">#0B0F14</color>
+</resources>

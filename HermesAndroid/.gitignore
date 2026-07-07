@@ -1,0 +1,13 @@
+# Gradle / build
+.gradle/
+build/
+app/build/
+local.properties
+
+# IDE
+.idea/
+*.iml
+.DS_Store
+
+# Keep: gradle wrapper, dist/*.apk, release keystore (demo signing)
+!dist/
