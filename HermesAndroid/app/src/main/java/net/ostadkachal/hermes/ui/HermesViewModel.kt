@@ -9,25 +9,36 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import net.ostadkachal.hermes.data.ConfigStore
 import net.ostadkachal.hermes.data.ConversationStore
-import net.ostadkachal.hermes.data.SettingsStore
+import net.ostadkachal.hermes.model.AppConfig
+import net.ostadkachal.hermes.model.Attachment
 import net.ostadkachal.hermes.model.ChatMessage
 import net.ostadkachal.hermes.model.Conversation
+import net.ostadkachal.hermes.model.Effort
+import net.ostadkachal.hermes.model.ModelRef
+import net.ostadkachal.hermes.model.ProviderProfile
 import net.ostadkachal.hermes.model.Role
-import net.ostadkachal.hermes.model.Settings
 import net.ostadkachal.hermes.net.LlmClient
 
 data class UiState(
-    val settings: Settings = Settings(),
+    val config: AppConfig = AppConfig(),
     val conversations: List<Conversation> = emptyList(),
     val current: Conversation = Conversation(),
+    val pending: List<Attachment> = emptyList(),
     val sending: Boolean = false,
-    val loaded: Boolean = false
-)
+    val loaded: Boolean = false,
+    val detectingProfileId: String? = null,
+    val toast: String? = null
+) {
+    /** Model in effect for the current chat. */
+    val effectiveModel: ModelRef?
+        get() = current.modelRef ?: config.selectedModel
+}
 
 class HermesViewModel(app: Application) : AndroidViewModel(app) {
 
-    private val settingsStore = SettingsStore(app)
+    private val configStore = ConfigStore(app)
     private val convStore = ConversationStore(app)
     private val llm = LlmClient()
 
@@ -38,9 +49,7 @@ class HermesViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         viewModelScope.launch {
-            settingsStore.settings.collect { s ->
-                _state.update { it.copy(settings = s) }
-            }
+            configStore.config.collect { cfg -> _state.update { it.copy(config = cfg) } }
         }
         viewModelScope.launch {
             val all = convStore.loadAll()
@@ -49,15 +58,20 @@ class HermesViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    // ---- chat lifecycle ----
+
     fun newChat() {
         streamJob?.cancel()
-        _state.update { it.copy(current = Conversation(), sending = false) }
+        val cfg = _state.value.config
+        _state.update {
+            it.copy(current = Conversation(modelRef = cfg.selectedModel), pending = emptyList(), sending = false)
+        }
     }
 
     fun openConversation(id: String) {
         streamJob?.cancel()
         val c = _state.value.conversations.firstOrNull { it.id == id } ?: return
-        _state.update { it.copy(current = c, sending = false) }
+        _state.update { it.copy(current = c, pending = emptyList(), sending = false) }
     }
 
     fun deleteConversation(id: String) {
@@ -65,14 +79,91 @@ class HermesViewModel(app: Application) : AndroidViewModel(app) {
             val remaining = _state.value.conversations.filterNot { it.id == id }.toMutableList()
             convStore.saveAll(remaining)
             val current = if (_state.value.current.id == id)
-                (remaining.firstOrNull() ?: Conversation()) else _state.value.current
+                (remaining.firstOrNull() ?: Conversation(modelRef = _state.value.config.selectedModel))
+            else _state.value.current
             _state.update { it.copy(conversations = remaining, current = current) }
         }
     }
 
-    fun updateSettings(s: Settings) {
-        viewModelScope.launch { settingsStore.update(s) }
+    // ---- per-chat controls ----
+
+    fun setThink(on: Boolean) {
+        _state.value.current.think = on
+        _state.update { it.copy(current = it.current.copy()) }
     }
+
+    fun setEffort(e: Effort) {
+        _state.value.current.effort = e
+        _state.update { it.copy(current = it.current.copy()) }
+    }
+
+    fun selectModel(ref: ModelRef) {
+        _state.value.current.modelRef = ref
+        _state.update { it.copy(current = it.current.copy()) }
+        // remember as the default for future chats too
+        viewModelScope.launch { configStore.save(_state.value.config.copy(selectedModel = ref)) }
+    }
+
+    // ---- attachments ----
+
+    fun addAttachment(a: Attachment) = _state.update { it.copy(pending = it.pending + a) }
+    fun removeAttachment(id: String) = _state.update { it.copy(pending = it.pending.filterNot { a -> a.id == id }) }
+
+    // ---- config editing ----
+
+    fun saveProfile(p: ProviderProfile) {
+        viewModelScope.launch {
+            val cfg = _state.value.config
+            val list = cfg.profiles.toMutableList()
+            val idx = list.indexOfFirst { it.id == p.id }
+            if (idx >= 0) list[idx] = p else list.add(p)
+            configStore.save(cfg.copy(profiles = list))
+        }
+    }
+
+    fun deleteProfile(id: String) {
+        viewModelScope.launch {
+            val cfg = _state.value.config
+            val list = cfg.profiles.filterNot { it.id == id }
+            val sel = if (cfg.selectedModel?.profileId == id) null else cfg.selectedModel
+            configStore.save(cfg.copy(profiles = list, selectedModel = sel))
+        }
+    }
+
+    fun updateSystemPrompt(text: String) {
+        viewModelScope.launch { configStore.save(_state.value.config.copy(systemPrompt = text)) }
+    }
+
+    fun updateSkills(skills: Set<String>) {
+        viewModelScope.launch { configStore.save(_state.value.config.copy(enabledSkills = skills)) }
+    }
+
+    fun detectModels(profileId: String) {
+        val cfg = _state.value.config
+        val profile = cfg.profile(profileId) ?: return
+        if (!profile.isConfigured) {
+            _state.update { it.copy(toast = "Add an API key first") }
+            return
+        }
+        _state.update { it.copy(detectingProfileId = profileId, toast = null) }
+        viewModelScope.launch {
+            try {
+                val models = llm.listModels(profile)
+                val updated = profile.copy(models = models)
+                val list = cfg.profiles.map { if (it.id == profileId) updated else it }
+                // auto-select first model if nothing selected yet
+                val sel = cfg.selectedModel ?: models.firstOrNull()?.let { ModelRef(profileId, it) }
+                configStore.save(cfg.copy(profiles = list, selectedModel = sel))
+                _state.update { it.copy(detectingProfileId = null, toast = "Found ${models.size} models") }
+            } catch (e: Exception) {
+                _state.update { it.copy(detectingProfileId = null, toast = "Detect failed: ${e.message}") }
+            }
+        }
+    }
+
+    fun clearToast() = _state.update { it.copy(toast = null) }
+
+    // ---- sending ----
 
     fun stopStreaming() {
         streamJob?.cancel()
@@ -84,27 +175,43 @@ class HermesViewModel(app: Application) : AndroidViewModel(app) {
 
     fun send(text: String) {
         val content = text.trim()
-        if (content.isEmpty() || _state.value.sending) return
+        val attachments = _state.value.pending
+        if ((content.isEmpty() && attachments.isEmpty()) || _state.value.sending) return
 
         val conv = _state.value.current
-        conv.messages.add(ChatMessage(role = Role.USER, text = content))
+        val userMsg = ChatMessage(role = Role.USER, text = content)
+        userMsg.attachments.addAll(attachments)
+        conv.messages.add(userMsg)
         if (conv.messages.count { it.role == Role.USER } == 1) {
-            conv.title = content.take(40)
+            conv.title = content.take(40).ifBlank { "Chat" }
         }
+        // pin the model actually used
+        conv.modelRef = _state.value.effectiveModel
+
         val assistant = ChatMessage(role = Role.ASSISTANT, text = "", streaming = true)
         conv.messages.add(assistant)
         conv.updatedAt = System.currentTimeMillis()
-        _state.update { it.copy(current = conv.copy(), sending = true) }
+        _state.update { it.copy(current = conv.copy(), pending = emptyList(), sending = true) }
         persistCurrent()
 
-        val historyForApi = conv.messages.dropLast(1) // exclude the empty assistant placeholder
+        val historyForApi = conv.messages.dropLast(1)
+        val cfg = _state.value.config
+        val ref = _state.value.effectiveModel
+        val profile = cfg.profile(ref?.profileId)
 
         streamJob = viewModelScope.launch {
             try {
-                llm.complete(_state.value.settings, historyForApi) { delta ->
-                    assistant.text += delta
-                    bump()
-                }
+                llm.complete(
+                    profile = profile,
+                    modelId = ref?.modelId,
+                    systemPrompt = cfg.systemPrompt,
+                    enabledSkills = cfg.enabledSkills,
+                    history = historyForApi,
+                    think = conv.think,
+                    effort = conv.effort,
+                    onText = { delta -> assistant.text += delta; bump() },
+                    onThinking = { delta -> assistant.thinking += delta; bump() }
+                )
                 assistant.streaming = false
             } catch (ce: kotlinx.coroutines.CancellationException) {
                 assistant.streaming = false
@@ -114,7 +221,7 @@ class HermesViewModel(app: Application) : AndroidViewModel(app) {
                 assistant.streaming = false
                 assistant.error = true
                 assistant.text = "⚠️ " + (e.message ?: "Request failed") +
-                    "\n\nCheck your provider, base URL, model name and API key in Settings."
+                    "\n\nCheck the provider, model, key and base URL in Settings."
             } finally {
                 conv.updatedAt = System.currentTimeMillis()
                 _state.update { it.copy(sending = false, current = conv.copy()) }
@@ -123,10 +230,7 @@ class HermesViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** Force a state emission so Compose observes the mutated streaming message. */
-    private fun bump() {
-        _state.update { it.copy(current = it.current.copy()) }
-    }
+    private fun bump() = _state.update { it.copy(current = it.current.copy()) }
 
     private fun persistCurrent() {
         viewModelScope.launch {

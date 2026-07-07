@@ -28,12 +28,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import net.ostadkachal.hermes.data.Skills
-import net.ostadkachal.hermes.model.Settings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SkillsScreen(
-    settings: Settings,
+    enabledSkills: Set<String>,
     onBack: () -> Unit,
     onToggle: (String, Boolean) -> Unit
 ) {
@@ -65,7 +64,7 @@ fun SkillsScreen(
                 )
             }
             items(Skills.ALL, key = { it.id }) { skill ->
-                val enabled = settings.enabledSkills.contains(skill.id)
+                val enabled = enabledSkills.contains(skill.id)
                 Card(
                     Modifier
                         .fillMaxWidth()
