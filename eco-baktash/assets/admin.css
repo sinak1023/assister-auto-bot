@@ -1,0 +1,303 @@
+:root {
+    --bg: #0e1220;
+    --panel: #171d33;
+    --panel2: #1e2543;
+    --border: rgba(255, 255, 255, 0.1);
+    --text: #e9ecfb;
+    --muted: #93a9c4;
+    --accent: #00b8d9;
+    --accent2: #7c4dff;
+    --ok: #2ecc71;
+    --bad: #ff5252;
+    --wait: #ffb300;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Vazirmatn', Tahoma, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+}
+
+a { color: var(--accent); text-decoration: none; }
+
+.topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 14px 22px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+}
+
+.topbar .logo {
+    font-weight: 800;
+    font-size: 1.05rem;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.topbar nav {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.topbar nav a {
+    padding: 8px 16px;
+    border-radius: 10px;
+    color: var(--muted);
+    font-size: 0.93rem;
+}
+
+.topbar nav a.active,
+.topbar nav a:hover {
+    background: var(--panel2);
+    color: var(--text);
+}
+
+.topbar nav a.logout { color: var(--bad); }
+
+.container {
+    max-width: 1150px;
+    margin: 0 auto;
+    padding: 24px 18px 60px;
+}
+
+h1.page-title {
+    font-size: 1.25rem;
+    margin-bottom: 20px;
+}
+
+.panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.panel h2 {
+    font-size: 1rem;
+    margin-bottom: 16px;
+    color: var(--muted);
+}
+
+/* فرم‌ها */
+label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-bottom: 6px;
+}
+
+input[type="text"],
+input[type="password"],
+input[type="number"],
+input[type="url"],
+textarea,
+select {
+    width: 100%;
+    padding: 11px 13px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    color: var(--text);
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    outline: none;
+}
+
+input:focus, textarea:focus, select:focus {
+    border-color: var(--accent);
+}
+
+textarea { min-height: 130px; resize: vertical; line-height: 1.9; }
+
+.grid2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+@media (max-width: 700px) {
+    .grid2 { grid-template-columns: 1fr; }
+}
+
+.fgroup { margin-bottom: 16px; }
+
+.hint { font-size: 0.78rem; color: var(--muted); margin-top: 5px; }
+
+.btn {
+    display: inline-block;
+    padding: 11px 26px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #fff;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.btn:hover { opacity: 0.9; }
+
+.btn.ghost {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    color: var(--text);
+}
+
+.btn.danger {
+    background: linear-gradient(90deg, #d32f2f, #ff5252);
+}
+
+.btn.green {
+    background: linear-gradient(90deg, #00897b, #2ecc71);
+}
+
+/* فیلتر */
+.filters {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr 1fr 1fr auto;
+    gap: 12px;
+    align-items: end;
+}
+
+@media (max-width: 900px) {
+    .filters { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 550px) {
+    .filters { grid-template-columns: 1fr; }
+}
+
+/* آمار */
+.stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.stat {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    text-align: center;
+}
+
+.stat .num { font-size: 1.4rem; font-weight: 800; }
+.stat .lbl { font-size: 0.8rem; color: var(--muted); margin-top: 4px; }
+.stat.s-ok .num { color: var(--ok); }
+.stat.s-bad .num { color: var(--bad); }
+.stat.s-wait .num { color: var(--wait); }
+
+/* جدول */
+.table-wrap { overflow-x: auto; }
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+    white-space: nowrap;
+}
+
+th, td {
+    padding: 11px 12px;
+    text-align: right;
+    border-bottom: 1px solid var(--border);
+}
+
+th { color: var(--muted); font-weight: 600; font-size: 0.8rem; }
+
+tr:hover td { background: rgba(255, 255, 255, 0.02); }
+
+td.ltr { direction: ltr; text-align: left; }
+
+.badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.badge.ok { background: rgba(46, 204, 113, 0.15); color: var(--ok); }
+.badge.bad { background: rgba(255, 82, 82, 0.15); color: var(--bad); }
+.badge.wait { background: rgba(255, 179, 0, 0.15); color: var(--wait); }
+
+.empty {
+    padding: 40px;
+    text-align: center;
+    color: var(--muted);
+}
+
+/* صفحه‌بندی */
+.pagination {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 18px;
+}
+
+.pagination a, .pagination span {
+    padding: 7px 14px;
+    border-radius: 8px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+.pagination .current {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+}
+
+/* پیام‌ها */
+.msg {
+    padding: 13px 16px;
+    border-radius: 10px;
+    margin-bottom: 18px;
+    font-size: 0.92rem;
+}
+
+.msg.ok { background: rgba(46, 204, 113, 0.12); border: 1px solid rgba(46, 204, 113, 0.4); color: var(--ok); }
+.msg.bad { background: rgba(255, 82, 82, 0.12); border: 1px solid rgba(255, 82, 82, 0.4); color: var(--bad); }
+
+/* لاگین */
+.login-box {
+    max-width: 380px;
+    margin: 12vh auto 0;
+    padding: 30px 26px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+}
+
+.login-box h1 {
+    text-align: center;
+    font-size: 1.15rem;
+    margin-bottom: 22px;
+}
+
+.danger-zone {
+    border-color: rgba(255, 82, 82, 0.4);
+}
+
+.danger-zone h2 { color: var(--bad); }
