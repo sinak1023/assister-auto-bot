@@ -4,7 +4,18 @@ require_once __DIR__ . '/config.php';
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     redirect('index.php');
 }
-csrf_check();
+
+// اگر نشست کاربر منقضی شده باشد (مثلاً صفحه مدت طولانی باز مانده)،
+// به‌جای خطای خشک، با پیام مناسب به فرم برگردد
+$sentCsrf = (string)($_POST['csrf'] ?? '');
+$realCsrf = (string)($_SESSION['csrf'] ?? '');
+if ($realCsrf === '' || !hash_equals($realCsrf, $sentCsrf)) {
+    redirect('index.php?' . http_build_query([
+        'err'   => 'نشست شما منقضی شده بود؛ لطفاً یک بار دیگر روی دکمه پرداخت بزنید.',
+        'name'  => trim((string)($_POST['name'] ?? '')),
+        'phone' => trim((string)($_POST['phone'] ?? '')),
+    ]) . '#payForm');
+}
 
 $name  = trim((string)($_POST['name'] ?? ''));
 $phone = trim(fa_to_en_digits((string)($_POST['phone'] ?? '')));

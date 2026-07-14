@@ -11,8 +11,19 @@ function db(): PDO
         $pdo = new PDO('sqlite:' . DATA_DIR . '/database.sqlite');
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+
+        // WAL: خواندن‌های همزمان بدون قفل شدن؛ busy_timeout: به‌جای خطای
+        // «database is locked» زیر بار همزمان، تا ۵ ثانیه منتظر آزاد شدن قفل می‌ماند.
         $pdo->exec('PRAGMA journal_mode=WAL');
-        init_db($pdo);
+        $pdo->exec('PRAGMA synchronous=NORMAL');
+        $pdo->exec('PRAGMA busy_timeout=5000');
+
+        // ساخت جدول‌ها فقط یک بار انجام می‌شود، نه در هر درخواست
+        $version = (int)$pdo->query('PRAGMA user_version')->fetchColumn();
+        if ($version < 1) {
+            init_db($pdo);
+            $pdo->exec('PRAGMA user_version = 1');
+        }
     }
     return $pdo;
 }
@@ -42,6 +53,7 @@ function init_db(PDO $pdo): void
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_payments_authority ON payments(authority)');
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status)');
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_payments_created ON payments(created_at)');
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_payments_token ON payments(view_token)');
 
     $defaults = [
         'brand_name'          => 'Eco Baktash',
@@ -60,13 +72,16 @@ function init_db(PDO $pdo): void
         'final_link_text'     => 'ورود به کانال دوره',
         'fail_title'          => 'پرداخت ناموفق بود ❌',
         'fail_text'           => 'در صورت کسر وجه از حساب شما، مبلغ تا ۷۲ ساعت آینده به حسابتان باز می‌گردد.',
-        'admin_password_hash' => password_hash('admin1234', PASSWORD_DEFAULT),
+        // رمز مدیریت در install.php ساخته می‌شود؛ تا قبل از نصب ورود ممکن نیست
+        'admin_password_hash' => '',
     ];
 
+    $pdo->beginTransaction();
     $st = $pdo->prepare('INSERT OR IGNORE INTO settings (k, v) VALUES (?, ?)');
     foreach ($defaults as $k => $v) {
         $st->execute([$k, $v]);
     }
+    $pdo->commit();
 }
 
 function settings(bool $fresh = false): array

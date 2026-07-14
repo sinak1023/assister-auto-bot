@@ -1,0 +1,36 @@
+# غیرفعال کردن نمایش لیست فایل‌ها
+Options -Indexes
+
+# مسدود کردن دسترسی مستقیم به فایل‌های دیتابیس در هر مسیری
+<FilesMatch "\.(sqlite|sqlite-wal|sqlite-shm|db)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order deny,allow
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# فشرده‌سازی خروجی — مصرف پهنای باند و زمان لود را به‌شدت کم می‌کند
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/css text/plain application/javascript application/json image/svg+xml
+</IfModule>
+
+# کش مرورگر برای فایل‌های استاتیک — با چند صد کاربر همزمان،
+# CSS و فونت فقط بار اول دانلود می‌شوند
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 7 days"
+    ExpiresByType application/javascript "access plus 7 days"
+    ExpiresByType image/png "access plus 30 days"
+    ExpiresByType image/jpeg "access plus 30 days"
+    ExpiresByType image/svg+xml "access plus 30 days"
+    ExpiresByType font/woff2 "access plus 30 days"
+</IfModule>
+
+# هدرهای امنیتی
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+</IfModule>
