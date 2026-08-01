@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>xpiki api shop</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="boot" class="boot">
+    <div class="spinner"></div>
+    <p>Loading your shop…</p>
+  </div>
+
+  <div id="app" hidden>
+    <header class="topbar">
+      <div>
+        <div class="topbar-shop" id="shopName">xpiki api shop</div>
+        <div class="topbar-user" id="userName"></div>
+      </div>
+      <div class="balance-chip" id="balanceChip">$0.00</div>
+    </header>
+
+    <main id="view"></main>
+
+    <nav class="tabbar">
+      <button data-tab="shop" class="tab active">
+        <span class="tab-icon">🛍</span><span>Shop</span>
+      </button>
+      <button data-tab="orders" class="tab">
+        <span class="tab-icon">📦</span><span>Orders</span>
+      </button>
+      <button data-tab="wallet" class="tab">
+        <span class="tab-icon">👛</span><span>Wallet</span>
+      </button>
+      <button data-tab="account" class="tab">
+        <span class="tab-icon">👤</span><span>Account</span>
+      </button>
+    </nav>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

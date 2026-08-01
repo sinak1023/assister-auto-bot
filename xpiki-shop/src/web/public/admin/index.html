@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>xpiki api shop — Admin</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Sign in -->
+  <div id="login" class="login-screen">
+    <form class="login-card" id="loginForm">
+      <div class="login-logo">xpiki</div>
+      <h1>Admin Panel</h1>
+      <p class="muted">Sign in to manage your shop.</p>
+      <div class="field">
+        <label for="loginUser">Username</label>
+        <input id="loginUser" autocomplete="username" required />
+      </div>
+      <div class="field">
+        <label for="loginPass">Password</label>
+        <input id="loginPass" type="password" autocomplete="current-password" required />
+      </div>
+      <div class="form-error" id="loginError" hidden></div>
+      <button class="btn primary block" type="submit">Sign in</button>
+    </form>
+  </div>
+
+  <!-- Panel -->
+  <div id="panel" hidden>
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-mark">xpiki</span>
+        <span class="brand-sub">api shop</span>
+      </div>
+      <nav>
+        <button class="nav-item active" data-page="dashboard"><span>📊</span> Dashboard</button>
+        <button class="nav-item" data-page="products"><span>📦</span> Products</button>
+        <button class="nav-item" data-page="categories"><span>🗂</span> Categories</button>
+        <button class="nav-item" data-page="orders"><span>🧾</span> Orders</button>
+        <button class="nav-item" data-page="users"><span>👥</span> Users</button>
+        <button class="nav-item" data-page="payments"><span>🪙</span> Payments</button>
+        <button class="nav-item" data-page="discounts"><span>🎟</span> Discounts</button>
+        <button class="nav-item" data-page="referrals"><span>🤝</span> Referrals</button>
+        <button class="nav-item" data-page="settings"><span>⚙️</span> Settings</button>
+      </nav>
+      <div class="sidebar-foot">
+        <span id="whoami" class="muted"></span>
+        <button class="btn ghost small" id="logoutBtn">Sign out</button>
+      </div>
+    </aside>
+
+    <main class="content">
+      <header class="page-head">
+        <h1 id="pageTitle">Dashboard</h1>
+        <div id="pageActions" class="page-actions"></div>
+      </header>
+      <div id="page"></div>
+    </main>
+  </div>
+
+  <!-- Modal host -->
+  <div id="modal" class="modal" hidden>
+    <div class="modal-card">
+      <header class="modal-head">
+        <h2 id="modalTitle"></h2>
+        <button class="modal-close" id="modalClose">✕</button>
+      </header>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

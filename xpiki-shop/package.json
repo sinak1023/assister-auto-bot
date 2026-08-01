@@ -1,0 +1,27 @@
+{
+  "name": "xpiki-shop",
+  "version": "1.0.0",
+  "description": "xpiki api shop - Telegram shop bot, mini app and web admin panel with automated crypto payments",
+  "main": "src/index.js",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "create-admin": "node scripts/create-admin.js",
+    "check": "node --check src/index.js",
+    "test": "node scripts/selftest.js && node scripts/test-payments.js",
+    "selftest": "node scripts/selftest.js",
+    "test:payments": "node scripts/test-payments.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.5.0",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "jsonwebtoken": "^9.0.2",
+    "node-telegram-bot-api": "^0.66.0"
+  }
+}
