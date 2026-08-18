@@ -114,9 +114,9 @@
 
 | # | کار | فایل‌ها | وضعیت |
 |---|---|---|---|
-| ۱-A | مهاجرت: ستون‌های هزینه روی `models` + `usage_log.cost_usd` + `models.media_kind` | مهاجرت ۰۰۳ | ⬜ |
-| ۱-B | ثبت هزینه‌ی واقعی هر تماس در `recordUsage` | `routes/proxy.js` | ⬜ |
-| ۱-C | سقف اندازه‌ی درخواست و `max_tokens` (محافظت از سوءاستفاده) | `routes/proxy.js`, `routes/messages.js` | ⬜ |
+| ۱-A | مهاجرت: ستون‌های هزینه روی `models` + `usage_log.cost_usd` + `models.media_kind` | مهاجرت ۰۰۳ | ✅ `d38e1e6` |
+| ۱-B | ثبت هزینه‌ی واقعی هر تماس در `recordUsage` | `routes/proxy.js` + `messages.js` | ✅ `d38e1e6` |
+| ۱-C | سقف اندازه‌ی درخواست و `max_tokens` (محافظت از سوءاستفاده) | `routes/proxy.js`, `routes/messages.js` | ✅ `d38e1e6` |
 | ۱-D | گزارش «درآمد منهای هزینه» به تفکیک مدل و کاربر | `routes/payment.js` | ⬜ |
 | ~~۱-E~~ | ~~وزن‌دهی توکن بر اساس مدل~~ | — | 🚫 لغو — تصمیم مالک: نرخ یکسان |
 | ~~۱-F~~ | ~~محدودیت دسترسی مدل بر اساس پکیج~~ | — | 🚫 لغو — همه‌ی پکیج‌ها به همه‌ی مدل‌های متنی دسترسی دارند |
@@ -310,6 +310,33 @@ features, button_text, sort_order, price_type, token_limit`
 **کار لازم:** ستون قیمت ورودی/خروجی روی `models` (یا `model_routes`)، و ثبت
 `cost_usd` روی هر ردیف `usage_log`. بعد یک گزارش ساده‌ی «درآمد منهای هزینه»
 به تفکیک مدل و کاربر.
+
+---
+
+## ۱-۶. 🐞 باگ زنده‌ی پروداکشن که حین گام ۱ پیدا شد — رفع شد ✅ `4f8d6d1`
+
+`estimateTokens()` در `server.js:517` تعریف شده و **هیچ‌وقت export نشده**. اما
+`routes/proxy.js` دو بار صدایش می‌زد (خط ۱۵۸ و ۳۰۶) بدون اینکه آن را از پارامترهای
+ماژول بگیرد. در نود هر فایل اسکوپ ماژول خودش را دارد، پس هر دو فراخوانی
+`ReferenceError: estimateTokens is not defined` می‌دادند.
+
+با یک بازتولید دو-فایلی مستقل اثبات شد:
+```
+parent can call it   : 42
+child calling it     : ReferenceError: estimateTokens is not defined
+```
+
+**چه زمانی شلیک می‌شد:** دقیقاً همان سناریویی که کامنت‌های خودِ کد توصیف می‌کنند —
+تماس روی **پلن توکنی** به مدلی که آپستریمش `usage` گزارش نمی‌کند.
+`recordUsage()` وسط کار می‌ترکید، **قبل از** `UPDATE subscriptions SET tokens_used`.
+
+**نتیجه برای مشتری:** درخواست بی‌پاسخ می‌ماند (استثنا فقط در لاگر سراسری
+`unhandledRejection` می‌افتاد) و هیچ سهمیه‌ای هم کسر نمی‌شد — یعنی مصرف رایگان.
+
+`routes/messages.js` سالم بود چون `estimateTokens` **محلی خودش** را دارد.
+
+رفع: تزریق `estimateTokens` از طریق کارخانه‌ی روت، همان الگویی که برای `getSetting`
+استفاده شده بود.
 
 ---
 
