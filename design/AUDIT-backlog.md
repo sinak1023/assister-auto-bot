@@ -158,7 +158,7 @@
 | ۳-C | صفحه‌ی اصلی (هیرو تا فراخوان پایانی) | `public/index.html` | ⏳ در حال اجرا (لِین P1) |
 | ۳-D | ورود، ثبت‌نام، بازیابی رمز | `public/login.html`, `register.html` | ✅ وریفای چشمی + تست خودکار |
 | ۳-E | مستندات | `public/docs.html` | ⏳ در حال اجرا (لِین P3) |
-| ۳-F | مقالات + وضعیت سرویس | `public/articles.html`, `health.html` | ⏳ در حال اجرا (لِین P4) |
+| ۳-F | مقالات + وضعیت سرویس | `articles/article/health.html` | ✅ وریفای چشمی + تست خودکار |
 | ۳-G | پنل کاربری: قالب، داشبورد، اشتراک، کلیدها + **لود تنبل** | `public/dashboard.html` | ⬜ |
 | ۳-H | پنل کاربری: خرید، پرداخت، فاکتور + **رفع واحد پول** | `public/dashboard.html`, `crypto-pay.html`, `invoice.html` | ⬜ |
 | ۳-I | پنل کاربری: لاگ مصرف، تیکت، پروفایل + حالت‌های سیستمی | `public/dashboard.html` | ⬜ |
